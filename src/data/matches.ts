@@ -12,5 +12,8 @@ export const matches: Match[] = [
 export const nextMatch = matches[0];
 export const latestResult = matches[3];
 export function formatMatchDate(date: string, options: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', ...options }).format(new Date(date));
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', ...options }).formatToParts(new Date(date));
+  const get = (type: string) => parts.find(part => part.type === type)?.value ?? '';
+  if (options.hour) return `${get('hour')}:${get('minute')}`;
+  return `${get('weekday')} ${get('day')} ${get('month')} ${get('year')}`.trim();
 }
