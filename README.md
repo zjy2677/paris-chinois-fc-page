@@ -1,29 +1,11 @@
-# Welcome to your Lovable project
+# Paris Chinois FC frontend prototype
 
-This project was built with [Lovable](https://lovable.dev).
+Six primary pages: Home, FLA League, Team, About Us, News / Media, Contact. Article details live under `/news/:id`. This is a frontend-only prototype; no accounts, emails, database or public publishing are configured.
 
-## Build with Lovable
+## Replacing sample content
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- Editorial images are mapped in `src/config/assets.ts`; replace imports with approved photography. The generated images are illustrative, not photographs of actual club members. `logo`, `playerPortraits`, `stadium`, and `sponsors` are explicit replacement slots. The red/gold shield and sponsor-free presentation are placeholders, not official artwork or endorsements.
+- Sample teams, fixtures, standings, players and stories are in `src/data/`. Dates display in the `Europe/Paris` timezone. Replace with verified club information before publishing.
+- The contact address, location and timeline are placeholders. The login and contact forms validate locally and display demo-only feedback; they do not send data or authenticate.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+Built with React, TypeScript, TanStack Start, Vite and Tailwind CSS v4. Feature implementations live in `src/features/`; thin route declarations live in `src/routes/`.

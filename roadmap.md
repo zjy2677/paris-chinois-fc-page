@@ -1,0 +1,4 @@
+- [x] Review attached brief and project conventions.
+- [x] Build shared design, data, media, navigation and accessible login prototype.
+- [x] Build home, league, team, about, news and contact pages.
+- [x] Verify routes and responsive layouts; document replaceable assets.
