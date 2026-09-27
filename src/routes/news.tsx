@@ -1,0 +1,3 @@
+import { createFileRoute } from '@tanstack/react-router';
+import { NewsPage } from '@/features/news/news-page';
+export const Route = createFileRoute('/news')({ head: () => ({ meta: [{ title: 'News & Media — Paris Chinois FC' }, { name: 'description', content: 'Sample match reports, club news, photography and video from Paris Chinois FC.' }, { property: 'og:title', content: 'News & Media — Paris Chinois FC' }, { property: 'og:description', content: 'Match reports, club news, photography and video.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }), component: NewsPage });
