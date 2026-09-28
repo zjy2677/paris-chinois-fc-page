@@ -1,0 +1,26 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground); --color-card: var(--card); --color-card-foreground: var(--foreground); --color-popover: var(--card); --color-popover-foreground: var(--foreground); --color-primary: var(--primary); --color-primary-foreground: var(--foreground); --color-secondary: var(--secondary); --color-secondary-foreground: var(--foreground); --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground); --color-accent: var(--accent); --color-accent-foreground: var(--foreground); --color-destructive: var(--primary); --color-destructive-foreground: var(--foreground); --color-border: var(--border); --color-input: var(--border); --color-ring: var(--copper); --color-copper: var(--copper); --color-oxblood: var(--oxblood); --font-display: "Barlow Condensed", sans-serif; --font-sans: "DM Sans", sans-serif;
+}
+:root { --background: oklch(0.14 0.005 260); --foreground: oklch(0.965 0.01 85); --card: oklch(0.205 0.007 260); --primary: oklch(0.59 0.22 25); --secondary: oklch(0.25 0.007 260); --muted: oklch(0.24 0.007 260); --muted-foreground: oklch(0.71 0.012 260); --accent: oklch(0.28 0.045 22); --border: oklch(0.34 0.009 260); --copper: oklch(0.7 0.085 70); --oxblood: oklch(0.36 0.12 22); --radius: 0.25rem; color-scheme: dark; }
+* { box-sizing: border-box; border-color: var(--border); }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+::selection { background: var(--primary); color: var(--foreground); }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.site-container { width: min(100% - 48px, 1440px); margin-inline: auto; }
+.eyebrow { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
+.display { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: 0; line-height: .84; }
+.section-title { font-family: var(--font-display); text-transform: uppercase; font-weight: 800; line-height: .9; font-size: clamp(3.1rem, 6vw, 6rem); }
+.rule { border-top: 1px solid var(--border); }
+.hero-scrim { background: linear-gradient(90deg, var(--background) 0%, color-mix(in oklch, var(--background) 86%, transparent) 24%, color-mix(in oklch, var(--background) 22%, transparent) 65%), linear-gradient(0deg, var(--background), transparent 30%); }
+.texture { background-image: repeating-linear-gradient(120deg, transparent 0 20px, color-mix(in oklch, var(--foreground) 3%, transparent) 20px 21px, transparent 21px 44px); }
+@media (max-width: 640px) { .site-container { width: min(100% - 32px, 1440px); } .hero-scrim { background: linear-gradient(0deg, var(--background) 0%, color-mix(in oklch, var(--background) 90%, transparent) 34%, color-mix(in oklch, var(--background) 20%, transparent) 100%); } }
+
+/* Chinese headings need space for full-height glyphs. */
+:lang(zh-CN) .display, :lang(zh-CN) .section-title { line-height: 1.12; }
+:lang(zh-CN) .eyebrow { letter-spacing: .08em; }

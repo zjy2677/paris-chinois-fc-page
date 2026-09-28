@@ -1,0 +1,32 @@
+name: Import FLA data
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fla-production-import
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.ETL_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.lock && pip install --no-deps ./backend
+      - name: Check database configuration
+        run: |
+          python - <<'PYTHON'
+          from app.config import get_settings
+          from sqlalchemy.engine import make_url
+          url = make_url(get_settings().database_url)
+          assert url.drivername == "postgresql+psycopg"
+          assert url.query.get("sslmode") in {"require", "verify-ca", "verify-full"}, "ETL requires TLS"
+          PYTHON
+      - name: Import validated fixtures and standings
+        run: python -m etl.main --write

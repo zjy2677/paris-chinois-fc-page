@@ -1,3 +1,0 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { AboutPage } from '@/features/about/about-page';
-export const Route = createFileRoute('/about')({ head: () => ({ meta: [{ title: 'Our Story — Paris Chinois FC' }, { name: 'description', content: 'Discover the identity, values and community behind Paris Chinois FC.' }, { property: 'og:title', content: 'Our Story — Paris Chinois FC' }, { property: 'og:description', content: 'The identity, values and community behind the club.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }), component: AboutPage });

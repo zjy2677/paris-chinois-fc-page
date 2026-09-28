@@ -1,3 +1,0 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { SquadPage } from '@/features/squad/squad-page';
-export const Route = createFileRoute('/team')({ head: () => ({ meta: [{ title: 'The Squad — Paris Chinois FC' }, { name: 'description', content: 'Meet the sample Paris Chinois FC squad, from goalkeepers to forwards.' }, { property: 'og:title', content: 'The Squad — Paris Chinois FC' }, { property: 'og:description', content: 'Meet the sample squad, from goalkeepers to forwards.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }), component: SquadPage });
