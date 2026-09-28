@@ -1,3 +1,0 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { LeaguePage } from '@/features/league/league-page';
-export const Route = createFileRoute('/league')({ head: () => ({ meta: [{ title: 'FLA League — Paris Chinois FC' }, { name: 'description', content: 'Sample Paris Chinois FC fixtures, results and FLA League standings.' }, { property: 'og:title', content: 'FLA League — Paris Chinois FC' }, { property: 'og:description', content: 'Sample fixtures, results and league standings.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }), component: LeaguePage });

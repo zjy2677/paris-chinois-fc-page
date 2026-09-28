@@ -1,3 +1,0 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ContactPage } from '@/features/contact/contact-page';
-export const Route = createFileRoute('/contact')({ head: () => ({ meta: [{ title: 'Contact — Paris Chinois FC' }, { name: 'description', content: 'Get in touch with Paris Chinois FC through our prototype contact page.' }, { property: 'og:title', content: 'Contact — Paris Chinois FC' }, { property: 'og:description', content: 'Get in touch with Paris Chinois FC.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }), component: ContactPage });

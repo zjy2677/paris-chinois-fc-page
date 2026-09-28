@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: paris-chinois-fc-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r backend/requirements.lock && pip install --no-deps ./backend
+    startCommand: sh backend/start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_MIGRATION_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_TTL_SECONDS
+        value: "28800"
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CONTACT_ENABLED
+        value: "false"
