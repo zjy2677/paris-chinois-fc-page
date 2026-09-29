@@ -233,7 +233,7 @@ class User(Identity, Base):
 class UserAvatar(Identity, Base):
     __tablename__ = "user_avatars"
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
     content_type: Mapped[str] = mapped_column(String(50))
     data: Mapped[bytes] = mapped_column(LargeBinary)

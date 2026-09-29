@@ -47,11 +47,14 @@ async def upload_avatar(request: Request, db: DB, user: Annotated[User, Depends(
                 raise HTTPException(413, "Profile picture is too large")
         except ValueError as error:
             raise HTTPException(400, "Invalid content length") from error
-    data = await request.body()
+    buffer = bytearray()
+    async for chunk in request.stream():
+        if len(buffer) + len(chunk) > MAX_AVATAR_BYTES:
+            raise HTTPException(413, "Profile picture is too large")
+        buffer.extend(chunk)
+    data = bytes(buffer)
     if not data:
         raise HTTPException(400, "Profile picture is required")
-    if len(data) > MAX_AVATAR_BYTES:
-        raise HTTPException(413, "Profile picture is too large")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
     avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
     if avatar is None:

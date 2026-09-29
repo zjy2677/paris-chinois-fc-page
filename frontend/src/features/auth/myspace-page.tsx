@@ -14,7 +14,7 @@ export function MyspacePage() {
   const { userId } = useParams({ from: "/myspace/$userId" });
   const ownPage = account.data?.id === userId;
 
-  if (account.isLoading) return <section className="site-container py-32">{t("auth.loading")}</section>;
+  if (account.isPending) return <section className="site-container py-32">{t("auth.loading")}</section>;
   if (!account.data) {
     return (
       <section className="site-container py-32">

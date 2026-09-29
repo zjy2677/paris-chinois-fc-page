@@ -1,0 +1,42 @@
+name: Gate CodeRabbit reviews to dev
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, edited, synchronize]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  review-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # Only manage PR metadata; never check out or execute pull-request code.
+      - name: Enable reviews only for dev-targeted pull requests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: issue_number });
+            const name = "coderabbit-review";
+            const hasLabel = pr.labels.some(label => label.name === name);
+            if (pr.base.ref === "dev" && !pr.draft) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                try {
+                  await github.rest.issues.createLabel({ owner, repo, name, color: "B60205" });
+                } catch (createError) {
+                  if (createError.status !== 422) throw createError;
+                }
+              }
+              if (!hasLabel) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [name] });
+              }
+            } else if (hasLabel) {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number, name });
+            }
