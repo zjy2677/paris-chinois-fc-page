@@ -30,7 +30,11 @@ for (const language of languages) {
     );
     for (const [key, value] of Object.entries(translations[language])) {
       assert.ok(value.trim(), key);
-      assert.deepEqual(value.match(/\{\w+\}/g), key.match(/\{\w+\}/g), key);
+      assert.deepEqual(
+        value.match(/\{\w+\}/g)?.sort() ?? [],
+        translations.en[key as keyof typeof translations.en].match(/\{\w+\}/g)?.sort() ?? [],
+        key,
+      );
     }
     assert.equal(
       translate(language, "Matchday {number}", { number: 5 }),

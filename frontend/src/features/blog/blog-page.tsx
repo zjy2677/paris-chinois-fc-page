@@ -4,6 +4,7 @@ import { useAccount } from "@/features/auth/auth-api";
 import { PageIntro } from "@/components/layout/page-intro";
 import { assets } from "@/config/assets";
 import {
+  publishedPageSize,
   useBlogMutation,
   useModerationQueue,
   useMyPosts,
@@ -19,7 +20,8 @@ const emptyForm: BlogInput = { title: "", body: "" };
 export function BlogPage() {
   const { t } = useI18n();
   const account = useAccount();
-  const published = usePublishedPosts();
+  const [publishedOffset, setPublishedOffset] = useState(0);
+  const published = usePublishedPosts(publishedOffset);
   const mine = useMyPosts(Boolean(account.data));
   const moderation = useModerationQueue(account.data?.role === "admin");
   const mutation = useBlogMutation();
@@ -38,7 +40,16 @@ export function BlogPage() {
       {
         onSuccess: (post) => {
           if (editing && submit) {
-            mutation.mutate({ path: `/posts/${post.id}/submit` });
+            mutation.mutate(
+              { path: `/posts/${post.id}/submit` },
+              {
+                onSuccess: () => {
+                  setForm(emptyForm);
+                  setEditing(null);
+                },
+              },
+            );
+            return;
           }
           setForm(emptyForm);
           setEditing(null);
@@ -75,6 +86,36 @@ export function BlogPage() {
           ))}
         </div>
 
+        {published.data && (published.data.total > publishedPageSize || publishedOffset > 0) ? (
+          <nav
+            className="mt-8 flex items-center justify-between gap-4"
+            aria-label={t("blog.pagination")}
+          >
+            <button
+              type="button"
+              disabled={publishedOffset === 0 || published.isFetching}
+              onClick={() =>
+                setPublishedOffset((offset) => Math.max(0, offset - publishedPageSize))
+              }
+              className="border border-border px-4 py-3 text-sm disabled:opacity-40"
+            >
+              {t("blog.previous")}
+            </button>
+            <button
+              type="button"
+              disabled={
+                publishedOffset + publishedPageSize >= published.data.total ||
+                published.isFetching ||
+                published.isError
+              }
+              onClick={() => setPublishedOffset((offset) => offset + publishedPageSize)}
+              className="border border-border px-4 py-3 text-sm disabled:opacity-40"
+            >
+              {t("blog.next")}
+            </button>
+          </nav>
+        ) : null}
+
         <section id="blog-editor" className="mt-20 border-t border-border pt-14">
           <p className="eyebrow text-primary">{t("blog.contribute")}</p>
           <h2 className="mt-4 font-display text-5xl font-bold uppercase">{t("blog.shareStory")}</h2>
@@ -85,6 +126,7 @@ export function BlogPage() {
               <Field label={t("blog.postTitle")}>
                 <input
                   required
+                  disabled={mutation.isPending}
                   minLength={3}
                   maxLength={180}
                   value={form.title}
@@ -95,6 +137,7 @@ export function BlogPage() {
               <Field label={t("blog.body")}>
                 <textarea
                   required
+                  disabled={mutation.isPending}
                   minLength={20}
                   maxLength={20000}
                   rows={12}
@@ -121,6 +164,7 @@ export function BlogPage() {
                 {editing ? (
                   <button
                     type="button"
+                    disabled={mutation.isPending}
                     onClick={() => {
                       setEditing(null);
                       setForm(emptyForm);

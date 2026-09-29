@@ -1,6 +1,9 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from math import ceil
+from threading import Lock
+from time import monotonic
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -17,6 +20,34 @@ mutation = [Depends(trusted_origin), Depends(throttle)]
 COOKIE_NAME = "pcfc_guestbook_visitor"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 POST_COOLDOWN = timedelta(seconds=30)
+
+
+# MVP: per-process IP cooldown for the single-worker deployment. A shared limiter
+# is needed before adding workers. Trust proxy headers only from configured proxies.
+_post_attempts: dict[str, float] = {}
+_post_lock = Lock()
+
+
+def posting_cooldown(request: Request):
+    host = request.client.host if request.client else "unknown"
+    now = monotonic()
+    window = POST_COOLDOWN.total_seconds()
+    with _post_lock:
+        for key, started in list(_post_attempts.items()):
+            if now - started >= window:
+                del _post_attempts[key]
+        previous = _post_attempts.get(host)
+        if previous is not None:
+            wait = max(1, ceil(window - (now - previous)))
+            raise HTTPException(
+                429, "Please wait before posting again", headers={"Retry-After": str(wait)}
+            )
+        # Fail closed at capacity rather than evicting an active cooldown.
+        if len(_post_attempts) >= 4096:
+            raise HTTPException(
+                429, "Please wait before posting again", headers={"Retry-After": "30"}
+            )
+        _post_attempts[host] = now
 
 
 class GuestbookInput(BaseModel):
@@ -69,6 +100,7 @@ def visible_messages(db: DB):
 
 @router.post("/messages", response_model=GuestbookResponse, status_code=201, dependencies=mutation)
 def create_message(body: GuestbookInput, request: Request, response: Response, db: DB):
+    posting_cooldown(request)
     fingerprint = visitor(request, response)
     last_created = db.scalar(
         select(GuestbookMessage.created_at)

@@ -16,6 +16,7 @@ export function GuestbookPage() {
   const messages = useGuestbookMessages();
   const moderation = useGuestbookModeration(account.data?.role === "admin");
   const mutation = useGuestbookMutation();
+  const moderate = useGuestbookMutation();
   const [nickname, setNickname] = useState("");
   const [body, setBody] = useState("");
   const [published, setPublished] = useState(false);
@@ -97,6 +98,12 @@ export function GuestbookPage() {
           </form>
         </section>
 
+        {moderate.isError ? (
+          <p role="alert" className="mt-8 text-sm text-copper">
+            {t("guestbook.moderationError")}
+          </p>
+        ) : null}
+
         <section className="pt-16" aria-labelledby="message-wall-title">
           <p className="eyebrow text-copper">{t("guestbook.community")}</p>
           <h2 id="message-wall-title" className="mt-4 font-display text-5xl font-bold uppercase">
@@ -117,7 +124,8 @@ export function GuestbookPage() {
                 index={index}
                 {...(account.data?.role === "admin"
                   ? {
-                      adminAction: () => mutation.mutate({ path: `/messages/${message.id}/hide` }),
+                      adminPending: moderate.isPending,
+                      adminAction: () => moderate.mutate({ path: `/messages/${message.id}/hide` }),
                     }
                   : {})}
               />
@@ -136,7 +144,8 @@ export function GuestbookPage() {
                   key={message.id}
                   message={message}
                   index={index}
-                  adminAction={() => mutation.mutate({ path: `/messages/${message.id}/restore` })}
+                  adminPending={moderate.isPending}
+                  adminAction={() => moderate.mutate({ path: `/messages/${message.id}/restore` })}
                 />
               ))}
             </div>

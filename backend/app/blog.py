@@ -44,7 +44,7 @@ class BlogPostPage(BaseModel):
 
 
 def owned_post(db: Session, post_id: UUID, user: User) -> BlogPost:
-    post = db.get(BlogPost, post_id)
+    post = db.get(BlogPost, post_id, with_for_update=True)
     if post is None:
         raise HTTPException(404, "Post not found")
     if post.author_id != user.id and user.role != "admin":
@@ -58,7 +58,7 @@ def published_posts(db: DB, offset: int = Query(0, ge=0), limit: int = Query(12,
     items = db.scalars(
         select(BlogPost)
         .where(condition)
-        .order_by(BlogPost.published_at.desc())
+        .order_by(BlogPost.published_at.desc(), BlogPost.id.desc())
         .offset(offset)
         .limit(limit)
     ).all()
@@ -112,8 +112,8 @@ def update_post(
     user: Annotated[User, Depends(current_user)],
 ):
     post = owned_post(db, post_id, user)
-    if post.status == "published":
-        raise HTTPException(409, "Published posts cannot be edited")
+    if post.status not in ("draft", "rejected"):
+        raise HTTPException(409, "Only draft or rejected posts can be edited")
     for field, value in body.model_dump().items():
         setattr(post, field, value)
     post.status = "draft"
@@ -135,9 +135,11 @@ def submit_post(post_id: UUID, db: DB, user: Annotated[User, Depends(current_use
 
 @router.post("/posts/{post_id}/publish", response_model=BlogPostResponse, dependencies=mutation)
 def publish_post(post_id: UUID, db: DB, _: Annotated[User, Depends(require_role("admin"))]):
-    post = db.get(BlogPost, post_id)
+    post = db.get(BlogPost, post_id, with_for_update=True)
     if post is None:
         raise HTTPException(404, "Post not found")
+    if post.status != "pending":
+        raise HTTPException(409, "Only pending posts can be moderated")
     post.status = "published"
     post.published_at = datetime.now(timezone.utc)
     db.commit()
@@ -147,9 +149,11 @@ def publish_post(post_id: UUID, db: DB, _: Annotated[User, Depends(require_role(
 
 @router.post("/posts/{post_id}/reject", response_model=BlogPostResponse, dependencies=mutation)
 def reject_post(post_id: UUID, db: DB, _: Annotated[User, Depends(require_role("admin"))]):
-    post = db.get(BlogPost, post_id)
+    post = db.get(BlogPost, post_id, with_for_update=True)
     if post is None:
         raise HTTPException(404, "Post not found")
+    if post.status != "pending":
+        raise HTTPException(409, "Only pending posts can be moderated")
     post.status = "rejected"
     post.published_at = None
     db.commit()

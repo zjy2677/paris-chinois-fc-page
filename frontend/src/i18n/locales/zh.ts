@@ -1,6 +1,11 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "blog.pagination": "博客分页",
+  "blog.previous": "上一页",
+  "blog.next": "下一页",
+  "guestbook.moderationError": "暂时无法处理此留言，请重试。",
+
   guestbook: "留言墙",
   "guestbook.eyebrow": "来自社区",
   "guestbook.title": "留言展示墙",

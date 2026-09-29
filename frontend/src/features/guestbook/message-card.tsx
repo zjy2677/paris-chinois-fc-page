@@ -7,10 +7,12 @@ export function MessageCard({
   message,
   index,
   adminAction,
+  adminPending = false,
 }: {
   message: GuestbookMessage;
   index: number;
   adminAction?: () => void;
+  adminPending?: boolean;
 }) {
   const { t, formatDate } = useI18n();
   return (
@@ -31,7 +33,12 @@ export function MessageCard({
           {formatDate(message.created_at, { day: "numeric", month: "long", year: "numeric" })}
         </time>
         {adminAction ? (
-          <button type="button" onClick={adminAction} className="text-xs text-copper underline">
+          <button
+            type="button"
+            disabled={adminPending}
+            onClick={adminAction}
+            className="text-xs text-copper underline"
+          >
             {message.status === "hidden" ? t("guestbook.restore") : t("guestbook.hide")}
           </button>
         ) : null}

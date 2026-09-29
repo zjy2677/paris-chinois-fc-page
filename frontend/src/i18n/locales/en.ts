@@ -1,4 +1,9 @@
 export const en = {
+  "blog.pagination": "Blog pages",
+  "blog.previous": "Previous",
+  "blog.next": "Next",
+  "guestbook.moderationError": "Unable to moderate this message. Please try again.",
+
   guestbook: "Guestbook",
   "guestbook.eyebrow": "From the community",
   "guestbook.title": "The message wall",

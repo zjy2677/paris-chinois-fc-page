@@ -1,6 +1,11 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "blog.pagination": "Pages du blog",
+  "blog.previous": "Précédent",
+  "blog.next": "Suivant",
+  "guestbook.moderationError": "Impossible de modérer ce message. Réessayez.",
+
   guestbook: "Livre d’or",
   "guestbook.eyebrow": "La communauté",
   "guestbook.title": "Le mur des messages",

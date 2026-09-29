@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type BlogStatus = "draft" | "pending" | "published" | "rejected";
 export type BlogPost = {
@@ -24,10 +24,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function usePublishedPosts() {
+export const publishedPageSize = 12;
+
+export function usePublishedPosts(offset = 0) {
   return useQuery({
-    queryKey: ["blog", "published"],
-    queryFn: () => request<{ items: BlogPost[]; total: number }>("/posts"),
+    queryKey: ["blog", "published", offset],
+    placeholderData: keepPreviousData,
+    queryFn: () =>
+      request<{ items: BlogPost[]; total: number }>(
+        `/posts?offset=${offset}&limit=${publishedPageSize}`,
+      ),
   });
 }
 
