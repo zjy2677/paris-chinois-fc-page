@@ -1,4 +1,10 @@
 export const en = {
+  "home.like": "Support the club",
+  "home.liked": "Thanks for your support",
+  "home.unlike": "Remove your support",
+  "home.likeCount": "{count} supporters",
+  "home.likeError": "Unable to update the count. Please try again.",
+
   "auth.welcome": "Welcome back. Sign in to your club account.",
   "auth.registerIntro": "Create your club account.",
   "auth.passwordHint": "Use at least 12 characters for your password.",
