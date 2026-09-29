@@ -85,6 +85,13 @@ export const en = {
   "auth.role.user": "User",
   "auth.role.player": "Player",
   "auth.role.admin": "Admin",
+  "auth.changePhoto": "Change profile picture",
+  "auth.uploading": "Uploading…",
+  "auth.uploadError": "The picture could not be uploaded. Use a PNG, JPEG, or WebP under 2 MB.",
+  "auth.myspace": "My space",
+  "auth.loading": "Loading your space…",
+  "auth.loginForMyspace": "Log in to view your space.",
+  "auth.privateProfile": "This space is private",
 
   "match.playHighlights": "Play highlights",
   "match.retryVideo": "Player not loading? Retry here",

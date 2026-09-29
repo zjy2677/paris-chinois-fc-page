@@ -74,6 +74,16 @@ def test_register_signs_in_without_email_configuration(auth):
     assert response.status_code == 201
     assert response.json()["first_name"] == "Jun"
     assert response.json()["role"] == "user"
+    assert set(response.json()) == {
+        "id",
+        "email",
+        "first_name",
+        "last_name",
+        "age_at_registration",
+        "role",
+        "avatar_updated_at",
+    }
+    assert response.json()["avatar_updated_at"] is None
     assert response.headers["cache-control"] == "no-store"
     user = db.scalar(select(User).where(User.normalized_email == CREDENTIALS["email"]))
     assert user.email_verified_at is None
