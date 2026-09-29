@@ -14,7 +14,12 @@ mutation = [Depends(trusted_origin), Depends(throttle)]
 
 
 def public_user(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.normalized_email, role=user.role)
+    return UserResponse(
+        id=user.id,
+        email=user.normalized_email,
+        role=user.role,
+        avatar_updated_at=user.avatar.updated_at if user.avatar else None,
+    )
 
 
 def set_cookie(response: Response, token: str):

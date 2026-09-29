@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -18,3 +19,4 @@ class UserResponse(BaseModel):
     id: UUID
     email: str
     role: Literal["user", "player", "admin"]
+    avatar_updated_at: datetime | None = None

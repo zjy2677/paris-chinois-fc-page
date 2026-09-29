@@ -3,16 +3,17 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
 from app.auth.dependencies import _attempts, require_role
 from app.auth.router import router
 from app.auth.service import COOKIE_NAME, hasher
 from app.config import get_settings
 from app.database import get_db
 from app.models import User
-from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 CREDENTIALS = {"email": "member@example.com", "password": "A long test password 2026"}
@@ -54,7 +55,8 @@ def test_register_user_hash_and_http_only_cookie(auth):
     response = client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN)
     assert response.status_code == 201
     assert response.json()["role"] == "user"
-    assert set(response.json()) == {"id", "email", "role"}
+    assert set(response.json()) == {"id", "email", "role", "avatar_updated_at"}
+    assert response.json()["avatar_updated_at"] is None
     assert "HttpOnly" in response.headers["set-cookie"]
     assert "SameSite=lax" in response.headers["set-cookie"]
     assert "Path=/api" in response.headers["set-cookie"]
