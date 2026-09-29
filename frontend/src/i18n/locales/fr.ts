@@ -6,6 +6,12 @@ export const fr = {
   "home.unlike": "Retirer votre soutien",
   "home.likeCount": "{count} soutiens",
   "home.likeError": "Impossible de mettre à jour le compteur. Réessayez.",
+  "auth.firstName": "Prénom",
+  "auth.lastName": "Nom",
+  "auth.age": "Âge",
+  "auth.ageHint": "Votre âge au moment de votre inscription.",
+  "auth.confirmPassword": "Confirmer le mot de passe",
+  "auth.passwordMismatch": "Les mots de passe ne correspondent pas.",
 
   "auth.welcome": "Connectez-vous à votre compte du club.",
   "auth.registerIntro": "Créez votre compte du club.",

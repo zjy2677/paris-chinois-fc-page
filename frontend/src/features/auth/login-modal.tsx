@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { authRequest, AuthError, type Account } from "./auth-api";
 import type { TranslationKey } from "@/i18n/translations";
 
+import { RegistrationFields, inputClass } from "./registration-fields";
+
 type Mode = "login" | "create";
 export function LoginModal({
   open,
@@ -21,7 +23,7 @@ export function LoginModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const validation = useLocalizedValidation();
   const cache = useQueryClient();
   const [mode, setMode] = useState<Mode>("login");
@@ -37,13 +39,22 @@ export function LoginModal({
         }
       }}
     >
-      <DialogContent className="max-w-md border-border bg-card p-8 text-foreground shadow-2xl">
-        <DialogHeader className="text-left">
+      <DialogContent
+        lang={language === "zh" ? "zh-CN" : language}
+        className="auth-dialog max-h-[90dvh] overflow-y-auto max-w-lg border-border bg-card p-5 sm:p-8 text-foreground shadow-2xl"
+      >
+        <DialogHeader className="space-y-3 text-left">
           <p className="eyebrow text-copper">{t("Members area")}</p>
-          <DialogTitle className="font-display text-5xl font-bold uppercase">
+          <DialogTitle
+            className={
+              language === "zh"
+                ? "font-sans text-3xl font-semibold leading-snug tracking-normal"
+                : "font-display text-5xl font-bold uppercase"
+            }
+          >
             {t(mode === "login" ? "Log in" : "Create account")}
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
+          <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
             {t(mode === "login" ? "auth.welcome" : "auth.registerIntro")}
           </DialogDescription>
         </DialogHeader>
@@ -55,15 +66,32 @@ export function LoginModal({
             event.preventDefault();
             if (pending) return;
             const form = new FormData(event.currentTarget);
+            if (mode === "create" && form.get("password") !== form.get("confirm_password")) {
+              setFeedback("auth.passwordMismatch");
+              return;
+            }
             setPending(true);
             setFeedback(null);
             try {
-              const account = await authRequest<Account>(mode === "create" ? "register" : "login", {
+              const credentials = {
                 email: String(form.get("email")),
                 password: String(form.get("password")),
-              });
+              };
+              const account = await authRequest<Account>(
+                mode === "create" ? "register" : "login",
+                mode === "create"
+                  ? {
+                      ...credentials,
+                      first_name: String(form.get("first_name")).trim(),
+                      last_name: String(form.get("last_name")).trim(),
+                      age: Number(form.get("age")),
+                      confirm_password: String(form.get("confirm_password")),
+                    }
+                  : credentials,
+              );
               await cache.cancelQueries({ queryKey: ["auth", "me"] });
               cache.setQueryData(["auth", "me"], account);
+              setMode("login");
               onOpenChange(false);
             } catch (error) {
               const status = error instanceof AuthError ? error.status : 0;
@@ -83,6 +111,7 @@ export function LoginModal({
             }
           }}
         >
+          {mode === "create" && <RegistrationFields pending={pending} />}
           <label className="block text-sm">
             {t("Email address")}
             <input
@@ -92,7 +121,7 @@ export function LoginModal({
               maxLength={254}
               autoComplete="email"
               disabled={pending}
-              className="mt-2 h-12 w-full border border-border bg-background px-3 text-foreground"
+              className={inputClass}
               placeholder="you@example.com"
             />
           </label>
@@ -106,9 +135,24 @@ export function LoginModal({
               type="password"
               autoComplete={mode === "create" ? "new-password" : "current-password"}
               disabled={pending}
-              className="mt-2 h-12 w-full border border-border bg-background px-3 text-foreground"
+              className={inputClass}
             />
           </label>
+          {mode === "create" && (
+            <label className="block text-sm">
+              {t("auth.confirmPassword")}
+              <input
+                name="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={256}
+                disabled={pending}
+                className={inputClass}
+              />
+            </label>
+          )}
           {mode === "create" && (
             <p className="text-xs text-muted-foreground">{t("auth.passwordHint")}</p>
           )}

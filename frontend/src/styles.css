@@ -36,3 +36,8 @@ body { margin: 0; background: var(--background); color: var(--foreground); font-
 /* Chinese headings need space for full-height glyphs. */
 :lang(zh-CN) .display, :lang(zh-CN) .section-title { line-height: 1.12; }
 :lang(zh-CN) .eyebrow { letter-spacing: .08em; }
+
+/* Keep Chinese account forms in a consistent CJK sans-serif with natural spacing. */
+.auth-dialog:lang(zh-CN) { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+.auth-dialog:lang(zh-CN) button { letter-spacing: normal; }
+.auth-dialog:lang(zh-CN) h2 { font-family: inherit; }
