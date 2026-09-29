@@ -4,6 +4,12 @@ export const en = {
   "home.unlike": "Remove your support",
   "home.likeCount": "{count} supporters",
   "home.likeError": "Unable to update the count. Please try again.",
+  "auth.firstName": "First name",
+  "auth.lastName": "Last name",
+  "auth.age": "Age",
+  "auth.ageHint": "Your age when you register.",
+  "auth.confirmPassword": "Confirm password",
+  "auth.passwordMismatch": "The passwords do not match.",
 
   "auth.welcome": "Welcome back. Sign in to your club account.",
   "auth.registerIntro": "Create your club account.",

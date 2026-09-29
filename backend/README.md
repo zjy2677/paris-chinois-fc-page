@@ -77,17 +77,19 @@ for migration downgrade/upgrade checks; downgrade removes tables and their data.
 ## Frontend connection
 
 Vite proxies `/api` to `http://127.0.0.1:8003` during local development. Run the API
-on port 8003 when using the frontend. For deployment, set VITE_API_BASE_URL to the
-public API origin and add the frontend origin to backend CORS_ORIGINS.
+on port 8003 when using the frontend. For deployment, leave VITE_API_BASE_URL empty and configure the Vercel API_ORIGIN
+proxy; add the frontend origin to backend CORS_ORIGINS.
 League data has no mock fallback. React Query caches responses for one minute; refresh
 or revisit after an ETL run to see new data. Match links use stable database UUIDs.
 
 ## Accounts and JWT authentication
 
-- POST `/api/auth/register`: email and password (12–256 characters); always creates `user`.
-  A `role` field is rejected. Registration signs the user in immediately.
+- POST `/api/auth/register`: first_name, last_name, age (integer 1–120), email,
+  password and confirm_password (matching, 12–256 characters).
+  Always creates `user`; a role field is rejected. Returns the account and signs in
+  immediately through the HttpOnly session cookie. No confirmation email is sent.
 - POST `/api/auth/login`: email and password.
-- GET `/api/auth/me`: current ID, email and role, or 401.
+- GET `/api/auth/me`: current ID, email, role, first/last name and age_at_registration, or 401.
 - POST `/api/auth/logout`: revokes the server session and clears the cookie.
 
 Passwords are Argon2id hashes. JWTs use HS256 with fixed issuer/audience, issued/expiry
@@ -125,8 +127,16 @@ roles. An admin role does not currently add an admin dashboard or upload control
 
 ### MVP boundaries
 
-Email verification and reset-email delivery are not implemented; an email address is not
-proof of ownership yet. The UI reports password reset as unavailable. Rate limiting allows
-10 registration/login attempts per IP per minute per process, using bounded memory. Before
+Email verification is currently disabled. Registration and login require no email provider.
+Email ownership is not checked; do not treat an email address as proof of identity.
+The nullable email_verified_at field is retained for future verification and is not
+populated by registration or login. Existing accounts retain passwords and roles.
+Age is stored as age_at_registration, not represented as a forever-current age.
+Passwords and confirmation text are never stored in plaintext.
+
+Deploy the profile migration with the backend before deploying the registration UI.
+
+Password-reset email delivery remains unavailable. Rate limiting allows
+10 auth mutation attempts per IP per minute per process, using bounded memory. Before
 multiple workers or public deployment, use a shared/edge rate limiter and configure trusted
 proxy addresses. HTTPS, restricted database access and a production secret are required.

@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, Request, Response
 from ..config import get_settings
 from ..models import User
 from .dependencies import DB, current_user, no_store, throttle, trusted_origin
-from .schemas import LoginRequest, RegisterRequest, UserResponse
+from .schemas import (
+    LoginRequest,
+    RegisterRequest,
+    UserResponse,
+)
 from .service import COOKIE_NAME, authenticate, issue_session, register, resolve_session
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"], dependencies=[Depends(no_store)])
@@ -14,7 +18,14 @@ mutation = [Depends(trusted_origin), Depends(throttle)]
 
 
 def public_user(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.normalized_email, role=user.role)
+    return UserResponse(
+        id=user.id,
+        email=user.normalized_email,
+        role=user.role,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        age_at_registration=user.age_at_registration,
+    )
 
 
 def set_cookie(response: Response, token: str):
@@ -32,9 +43,8 @@ def set_cookie(response: Response, token: str):
 
 @router.post("/register", response_model=UserResponse, status_code=201, dependencies=mutation)
 def register_user(body: RegisterRequest, response: Response, db: DB):
-    user = register(db, str(body.email), body.password)
-    token = issue_session(db, user)
-    set_cookie(response, token)
+    user = register(db, str(body.email), body.password, body.first_name, body.last_name, body.age)
+    set_cookie(response, issue_session(db, user))
     return public_user(user)
 
 

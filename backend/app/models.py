@@ -177,7 +177,14 @@ class HomepageLike(Identity, Base):
 # Accounts and revocable authentication sessions.
 class User(Identity, Base):
     __tablename__ = "users"
-    __table_args__ = (CheckConstraint("role IN ('user', 'player', 'admin')", name="user_role"),)
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'player', 'admin')", name="user_role"),
+        CheckConstraint("age_at_registration BETWEEN 1 AND 120", name="user_age"),
+    )
+    first_name: Mapped[str | None] = mapped_column(String(80))
+    last_name: Mapped[str | None] = mapped_column(String(80))
+    age_at_registration: Mapped[int | None] = mapped_column(Integer)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     normalized_email: Mapped[str] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(20), default="user", server_default="user")

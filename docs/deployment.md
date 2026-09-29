@@ -128,7 +128,7 @@ Render Free sleeps after 15 minutes without traffic, so a first visit may wait o
 need a retry while the API wakes. Neon may also cold-start. These tiers cannot
 promise instant responses. Vercel Hobby is restricted to eligible non-commercial
 use; confirm that the club site's actual use qualifies. Domain registration is
-separate from free hosting. Email verification/reset delivery and contact submissions
+separate from free hosting. Email verification is disabled; password-reset delivery and contact submissions
 remain unavailable. Auth throttling is per-process; add a shared limiter before
 multiple workers/instances, and verify client IP forwarding on the live proxy path.
 
@@ -140,3 +140,13 @@ References checked for this setup:
 - https://render.com/docs/blueprint-spec
 - https://neon.com/docs/connect/connection-pooling
 - https://vercel.com/docs/plans/hobby
+
+## Registration without email verification
+
+No RESEND_API_KEY, EMAIL_FROM or PUBLIC_SITE_URL setting is required. Any previously
+added email settings can be removed from Render. Keep JWT_SECRET and CORS_ORIGINS.
+Deploy the profile migration with the backend first, then deploy the frontend.
+Registration collects first name, last name, age, email and matching passwords,
+and signs the member in immediately. Existing accounts can also sign in without
+confirmation. Email ownership is not checked; password-reset email is unavailable.
+After deployment, test registration, refresh, logout and login on the real site.

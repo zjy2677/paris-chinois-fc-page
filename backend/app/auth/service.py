@@ -30,10 +30,17 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def register(db: Session, email: str, password: str) -> User:
+def register(
+    db: Session, email: str, password: str, first_name: str, last_name: str, age: int
+) -> User:
     signing_key()
     user = User(
-        normalized_email=email.strip().casefold(), password_hash=hasher.hash(password), role="user"
+        normalized_email=email.strip().casefold(),
+        password_hash=hasher.hash(password),
+        role="user",
+        first_name=first_name,
+        last_name=last_name,
+        age_at_registration=age,
     )
     db.add(user)
     try:
