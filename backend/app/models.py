@@ -174,6 +174,40 @@ class HomepageLike(Identity, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BlogPost(Identity, Base):
+    __tablename__ = "blog_posts"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft','pending','published','rejected')", name="blog_post_status"
+        ),
+        Index("ix_blog_posts_status_published", "status", "published_at"),
+    )
+
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(180))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="draft", server_default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GuestbookMessage(Identity, Base):
+    __tablename__ = "guestbook_messages"
+    __table_args__ = (
+        CheckConstraint("status IN ('visible','hidden')", name="guestbook_message_status"),
+        Index("ix_guestbook_status_created", "status", "created_at"),
+    )
+
+    nickname: Mapped[str] = mapped_column(String(30))
+    body: Mapped[str] = mapped_column(String(300))
+    visitor_hash: Mapped[str] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="visible", server_default="visible")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Accounts and revocable authentication sessions.
 class User(Identity, Base):
     __tablename__ = "users"
