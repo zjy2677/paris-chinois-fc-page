@@ -1,6 +1,11 @@
 name: Import FLA data
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * 6"
+      timezone: "Europe/Paris"
+    - cron: "0 9 * * 1"
+      timezone: "Europe/Paris"
 permissions:
   contents: read
 concurrency:
