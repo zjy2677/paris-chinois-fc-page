@@ -25,6 +25,7 @@ def public_user(user: User) -> UserResponse:
         first_name=user.first_name,
         last_name=user.last_name,
         age_at_registration=user.age_at_registration,
+        avatar_updated_at=user.avatar.updated_at if user.avatar else None,
     )
 
 

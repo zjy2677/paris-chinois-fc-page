@@ -87,6 +87,13 @@ export const zh = {
   "auth.role.user": "用户",
   "auth.role.player": "球员",
   "auth.role.admin": "管理员",
+  "auth.changePhoto": "更换头像",
+  "auth.uploading": "正在上传…",
+  "auth.uploadError": "头像上传失败，请使用 2 MB 以内的 PNG、JPEG 或 WebP 图片。",
+  "auth.myspace": "我的空间",
+  "auth.loading": "正在加载您的空间…",
+  "auth.loginForMyspace": "登录后查看您的空间。",
+  "auth.privateProfile": "该空间为私密空间",
 
   "match.playHighlights": "播放比赛集锦",
   "match.retryVideo": "播放器未加载？点击重试",
