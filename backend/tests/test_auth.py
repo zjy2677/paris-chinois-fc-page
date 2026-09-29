@@ -17,6 +17,22 @@ from app.models import User
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 CREDENTIALS = {"email": "member@example.com", "password": "A long test password 2026"}
+SIGNUP = {
+    **CREDENTIALS,
+    "confirm_password": CREDENTIALS["password"],
+    "first_name": "Jun",
+    "last_name": "Zhao",
+    "age": 28,
+}
+
+
+def signup(client):
+    return client.post("/api/auth/register", json=SIGNUP, headers=ORIGIN)
+
+
+def signup_and_login(client):
+    assert signup(client).status_code == 201
+    assert client.post("/api/auth/login", json=CREDENTIALS, headers=ORIGIN).status_code == 200
 
 
 @pytest.fixture
@@ -28,6 +44,8 @@ def auth(monkeypatch):
     assert engine.url.database.endswith("_test")
     monkeypatch.setenv("JWT_SECRET", "test-signing-key-not-for-production-1234567890")
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+    for key in ("RESEND_API_KEY", "EMAIL_FROM", "PUBLIC_SITE_URL"):
+        monkeypatch.delenv(key, raising=False)
     get_settings.cache_clear()
     _attempts.clear()
     app = FastAPI()
@@ -50,51 +68,61 @@ def auth(monkeypatch):
     _attempts.clear()
 
 
-def test_register_user_hash_and_http_only_cookie(auth):
+def test_register_signs_in_without_email_configuration(auth):
     client, db = auth
-    response = client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN)
+    response = signup(client)
     assert response.status_code == 201
+    assert response.json()["first_name"] == "Jun"
     assert response.json()["role"] == "user"
-    assert set(response.json()) == {"id", "email", "role", "avatar_updated_at"}
+    assert set(response.json()) == {
+        "id",
+        "email",
+        "first_name",
+        "last_name",
+        "age_at_registration",
+        "role",
+        "avatar_updated_at",
+    }
     assert response.json()["avatar_updated_at"] is None
+    assert response.headers["cache-control"] == "no-store"
+    user = db.scalar(select(User).where(User.normalized_email == CREDENTIALS["email"]))
+    assert user.email_verified_at is None
+    assert (user.first_name, user.last_name, user.age_at_registration) == ("Jun", "Zhao", 28)
+    assert hasher.verify(user.password_hash, CREDENTIALS["password"])
+    assert client.get("/api/auth/me").status_code == 200
     assert "HttpOnly" in response.headers["set-cookie"]
     assert "SameSite=lax" in response.headers["set-cookie"]
     assert "Path=/api" in response.headers["set-cookie"]
-    assert response.headers["cache-control"] == "no-store"
-    user = db.scalar(select(User).where(User.normalized_email == CREDENTIALS["email"]))
-    assert user.password_hash.startswith("$argon2id$")
-    assert hasher.verify(user.password_hash, CREDENTIALS["password"])
-    assert client.get("/api/auth/me").json()["email"] == CREDENTIALS["email"]
 
 
 @pytest.mark.parametrize("role", ["player", "admin", "user"])
 def test_registration_cannot_supply_role(auth, role):
     client, db = auth
-    response = client.post("/api/auth/register", json={**CREDENTIALS, "role": role}, headers=ORIGIN)
+    response = client.post("/api/auth/register", json={**SIGNUP, "role": role}, headers=ORIGIN)
     assert response.status_code == 422
     assert db.scalar(select(User).where(User.normalized_email == CREDENTIALS["email"])) is None
 
 
 def test_origin_password_and_duplicate_validation(auth):
     client, _ = auth
-    assert client.post("/api/auth/register", json=CREDENTIALS).status_code == 403
+    assert client.post("/api/auth/register", json=SIGNUP).status_code == 403
     assert (
         client.post(
-            "/api/auth/register", json=CREDENTIALS, headers={"Origin": "https://attacker.example"}
+            "/api/auth/register", json=SIGNUP, headers={"Origin": "https://attacker.example"}
         ).status_code
         == 403
     )
     assert (
         client.post(
-            "/api/auth/register", json={**CREDENTIALS, "password": "short"}, headers=ORIGIN
+            "/api/auth/register", json={**SIGNUP, "password": "short"}, headers=ORIGIN
         ).status_code
         == 422
     )
-    assert client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN).status_code == 201
+    assert client.post("/api/auth/register", json=SIGNUP, headers=ORIGIN).status_code == 201
     assert (
         client.post(
             "/api/auth/register",
-            json={**CREDENTIALS, "email": "MEMBER@example.com"},
+            json={**SIGNUP, "email": "MEMBER@example.com"},
             headers=ORIGIN,
         ).status_code
         == 409
@@ -103,7 +131,7 @@ def test_origin_password_and_duplicate_validation(auth):
 
 def test_login_logout_and_replay(auth):
     client, _ = auth
-    client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN)
+    signup_and_login(client)
     token = client.cookies.get(COOKIE_NAME)
     assert client.post("/api/auth/logout", headers=ORIGIN).status_code == 204
     assert client.get("/api/auth/me").status_code == 401
@@ -122,7 +150,7 @@ def test_login_logout_and_replay(auth):
 
 def test_database_role_and_deactivation_checked_each_request(auth):
     client, db = auth
-    client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN)
+    signup_and_login(client)
     token = client.cookies.get(COOKIE_NAME)
     # Cookie path is /api, so explicitly pass it to this test-only protected route.
     headers = {"Cookie": f"{COOKIE_NAME}={token}"}
@@ -142,7 +170,7 @@ def test_database_role_and_deactivation_checked_each_request(auth):
 
 def test_tampered_and_expired_jwt_rejected(auth):
     client, _ = auth
-    client.post("/api/auth/register", json=CREDENTIALS, headers=ORIGIN)
+    signup_and_login(client)
     token = client.cookies.get(COOKIE_NAME)
     claims = jwt.decode(token, options={"verify_signature": False})
     forged = jwt.encode(claims, "wrong-signing-key-12345678901234567890", algorithm="HS256")
@@ -164,3 +192,38 @@ def test_auth_throttling(auth):
     response = client.post("/api/auth/login", json={}, headers=ORIGIN)
     assert response.status_code == 429
     assert response.headers["retry-after"] == "60"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"first_name": "   "},
+        {"last_name": ""},
+        {"age": 0},
+        {"age": 121},
+        {"age": 20.5},
+        {"age": True},
+        {"confirm_password": "different long password"},
+    ],
+)
+def test_profile_validation(auth, change):
+    client, _ = auth
+    assert (
+        client.post("/api/auth/register", json=SIGNUP | change, headers=ORIGIN).status_code == 422
+    )
+
+
+def test_existing_unverified_account_can_login(auth):
+    client, db = auth
+    user = User(
+        normalized_email=CREDENTIALS["email"],
+        password_hash=hasher.hash(CREDENTIALS["password"]),
+        role="admin",
+    )
+    db.add(user)
+    db.commit()
+    response = client.post("/api/auth/login", json=CREDENTIALS, headers=ORIGIN)
+    assert response.status_code == 200
+    assert response.json()["role"] == "admin" and response.json()["first_name"] is None
+    assert client.get("/api/auth/me").status_code == 200
+    assert user.email_verified_at is None

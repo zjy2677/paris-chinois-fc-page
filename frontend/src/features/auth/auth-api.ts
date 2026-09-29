@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 export type Account = {
   id: string;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
+  age_at_registration: number | null;
   role: "user" | "player" | "admin";
   avatar_updated_at: string | null;
 };
@@ -13,7 +16,7 @@ export class AuthError extends Error {
 }
 export async function authRequest<T>(
   path: string,
-  body?: { email: string; password: string },
+  body?: Record<string, string | number>,
 ): Promise<T> {
   const response = await fetch(`${base}/api/auth/${path}`, {
     method: "POST",
