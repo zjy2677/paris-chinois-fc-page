@@ -1,6 +1,12 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "home.like": "支持球队",
+  "home.liked": "感谢支持",
+  "home.unlike": "取消支持",
+  "home.likeCount": "{count} 人支持",
+  "home.likeError": "暂时无法更新，请重试。",
+
   "auth.welcome": "欢迎回来，请登录您的俱乐部账户。",
   "auth.registerIntro": "创建您的俱乐部账户。",
   "auth.passwordHint": "密码至少需要12个字符。",

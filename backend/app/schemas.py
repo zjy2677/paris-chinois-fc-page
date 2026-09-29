@@ -91,3 +91,8 @@ class ContactRequest(BaseModel):
     email: EmailStr = Field(max_length=254)
     subject: str = Field(min_length=1, max_length=200)
     message: str = Field(min_length=1, max_length=5000)
+
+
+class HomepageLikeResponse(BaseModel):
+    count: int
+    liked: bool
