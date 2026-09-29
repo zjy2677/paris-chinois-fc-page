@@ -166,6 +166,14 @@ class ContactMessage(Identity, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class HomepageLike(Identity, Base):
+    __tablename__ = "homepage_likes"
+    __table_args__ = (UniqueConstraint("visitor_hash", name="uq_homepage_like_visitor"),)
+
+    visitor_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # Accounts and revocable authentication sessions.
 class User(Identity, Base):
     __tablename__ = "users"

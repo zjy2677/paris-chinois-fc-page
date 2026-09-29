@@ -1,6 +1,12 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "home.like": "Soutenir le club",
+  "home.liked": "Merci pour votre soutien",
+  "home.unlike": "Retirer votre soutien",
+  "home.likeCount": "{count} soutiens",
+  "home.likeError": "Impossible de mettre à jour le compteur. Réessayez.",
+
   "auth.welcome": "Connectez-vous à votre compte du club.",
   "auth.registerIntro": "Créez votre compte du club.",
   "auth.passwordHint": "Utilisez un mot de passe d’au moins 12 caractères.",

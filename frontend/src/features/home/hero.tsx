@@ -2,6 +2,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { assets } from "@/config/assets";
+import { LikeButton } from "./like-button";
 export function Hero() {
   const { t } = useI18n();
 
@@ -47,6 +48,7 @@ export function Hero() {
                 <ArrowUpRight size={17} />
               </Link>
             </div>
+            <LikeButton />
           </div>
         </div>
       </div>
