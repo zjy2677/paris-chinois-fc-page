@@ -89,7 +89,8 @@ export const fr = {
   "auth.role.admin": "Administrateur",
   "auth.changePhoto": "Changer la photo de profil",
   "auth.uploading": "Envoi en cours…",
-  "auth.uploadError": "La photo n’a pas pu être envoyée. Utilisez un PNG, JPEG ou WebP de moins de 2 Mo.",
+  "auth.uploadError":
+    "La photo n’a pas pu être envoyée. Utilisez un PNG, JPEG ou WebP de moins de 2 Mo.",
   "auth.myspace": "Mon espace",
   "auth.loading": "Chargement de votre espace…",
   "auth.loginForMyspace": "Connectez-vous pour voir votre espace.",
