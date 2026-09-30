@@ -6,11 +6,16 @@ from .. import services
 from ..auth.dependencies import DB, no_store, require_role, throttle, trusted_origin
 from ..schemas import PlayerResponse
 from . import service
-from .schemas import PlayerCreate, PlayerUpdate
+from .schemas import PlayerCreate, PlayerProfileResponse, PlayerUpdate
 
 router = APIRouter(prefix="/api", tags=["Player management"])
 admin = [Depends(require_role("admin")), Depends(no_store)]
 mutation = [*admin, Depends(trusted_origin), Depends(throttle)]
+
+
+@router.get("/players/{player_id}", response_model=PlayerProfileResponse)
+def player_profile(player_id: UUID, db: DB):
+    return service.profile(db, player_id)
 
 
 @router.get("/admin/players", response_model=list[PlayerResponse], dependencies=admin)

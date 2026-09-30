@@ -255,3 +255,25 @@ signed-out requests return 401.
 Run `tests/test_players.py` against a migrated disposable PostgreSQL database using
 `TEST_DATABASE_URL` as shown above. Tests cover CRUD, preserved history, role and origin
 checks, season filtering, optional-field clearing, invalid input, and shirt conflicts.
+
+## Individual player profiles
+
+`/team/player_<UUID>` is a public frontend route linked from each squad card.
+`GET /api/players/{player_id}` returns public player fields, description, all season
+memberships (newest first), and recorded career goal/assist counts. Inactive players
+remain accessible through their permanent profile links so historical records still
+make sense. No account email, password, or other private user information is returned.
+
+Goal totals count regular and penalty goal events, excluding own goals. Assist totals
+count the associated assist events. Totals span all recorded matches and seasons and
+update when goal events are edited or deleted. They are not inferred from match scores;
+incomplete club-entered events produce incomplete totals. Membership joins do not
+multiply event counts.
+
+Admins can set or clear `description` through the existing POST/PATCH player endpoints
+and player form. It is optional plain text, limited to 2,000 characters and rendered
+without HTML. Interface labels are translated in all three languages; the description
+is displayed as entered by the club.
+
+Run `alembic upgrade head` before deploying this change. Revision `b7c8d9e0f123` adds
+the nullable `players.description` column after `f0ad5f64a5bd`, retaining a single head.

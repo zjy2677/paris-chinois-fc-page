@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
@@ -11,6 +12,7 @@ class PlayerInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     display_name: str = Field(min_length=1, max_length=150)
     photo_url: HttpUrl | None = None
+    description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
     position: Position
     active: bool = Field(default=True, strict=True)
@@ -43,6 +45,7 @@ class PlayerUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     display_name: str | None = Field(default=None, min_length=1, max_length=150)
     photo_url: HttpUrl | None = None
+    description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
     position: Position | None = None
     active: bool | None = Field(default=None, strict=True)
@@ -56,3 +59,20 @@ class PlayerUpdate(BaseModel):
         if not self.model_fields_set:
             raise ValueError("Provide at least one player field")
         return self
+
+
+class SquadSeasonResponse(BaseModel):
+    season: str
+    position: str
+    shirt_number: int | None
+
+
+class PlayerProfileResponse(BaseModel):
+    id: UUID
+    display_name: str
+    photo_url: str | None
+    description: str | None
+    active: bool
+    squads: list[SquadSeasonResponse]
+    goals: int
+    assists: int

@@ -19,6 +19,7 @@ import { Route as TeamRouteImport } from './routes/team'
 import { Route as BlogPostIdRouteImport } from './routes/blog_.$postId'
 import { Route as MatchesIdRouteImport } from './routes/matches.$id'
 import { Route as MyspaceUserIdRouteImport } from './routes/myspace.$userId'
+import { Route as TeamPlayerIdRouteImport } from './routes/team_.$playerId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const MyspaceUserIdRoute = MyspaceUserIdRouteImport.update({
   path: '/myspace/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamPlayerIdRoute = TeamPlayerIdRouteImport.update({
+  id: '/team_/$playerId',
+  path: '/team/$playerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/blog/$postId': typeof BlogPostIdRoute
   '/matches/$id': typeof MatchesIdRoute
   '/myspace/$userId': typeof MyspaceUserIdRoute
+  '/team/$playerId': typeof TeamPlayerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/blog/$postId': typeof BlogPostIdRoute
   '/matches/$id': typeof MatchesIdRoute
   '/myspace/$userId': typeof MyspaceUserIdRoute
+  '/team/$playerId': typeof TeamPlayerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/blog_/$postId': typeof BlogPostIdRoute
   '/matches/$id': typeof MatchesIdRoute
   '/myspace/$userId': typeof MyspaceUserIdRoute
+  '/team_/$playerId': typeof TeamPlayerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/blog/$postId'
     | '/matches/$id'
     | '/myspace/$userId'
+    | '/team/$playerId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/blog/$postId'
     | '/matches/$id'
     | '/myspace/$userId'
+    | '/team/$playerId'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/blog_/$postId'
     | '/matches/$id'
     | '/myspace/$userId'
+    | '/team_/$playerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   BlogPostIdRoute: typeof BlogPostIdRoute
   MatchesIdRoute: typeof MatchesIdRoute
   MyspaceUserIdRoute: typeof MyspaceUserIdRoute
+  TeamPlayerIdRoute: typeof TeamPlayerIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MyspaceUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team_/$playerId': {
+      id: '/team_/$playerId'
+      path: '/team/$playerId'
+      fullPath: '/team/$playerId'
+      preLoaderRoute: typeof TeamPlayerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   BlogPostIdRoute: BlogPostIdRoute,
   MatchesIdRoute: MatchesIdRoute,
   MyspaceUserIdRoute: MyspaceUserIdRoute,
+  TeamPlayerIdRoute: TeamPlayerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

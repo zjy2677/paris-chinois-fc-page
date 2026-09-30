@@ -174,6 +174,7 @@ class Player(Identity, Base):
     __tablename__ = "players"
     display_name: Mapped[str] = mapped_column(String(150))
     photo_url: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(default=True)
 
 

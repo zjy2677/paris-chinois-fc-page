@@ -115,6 +115,7 @@ def test_admin_required(player_client, role, status):
         {"shirt_number": 1.5},
         {"position": "invalid"},
         {"active": "false"},
+        {"description": "x" * 2001},
     ],
 )
 def test_invalid_create_and_edit(player_client, change):
@@ -157,3 +158,37 @@ def test_duplicate_shirt_and_invalid_targets(player_client):
         == 422
     )
     assert len(client.get("/api/players").json()) == 2
+
+
+def test_description_lifecycle_and_public_profile(player_client):
+    client, _, _ = player_client
+    created = client.post(
+        "/api/players", json=BODY | {"description": "  Creative midfielder.  "}, headers=ORIGIN
+    )
+    assert created.status_code == 201
+    path = f"/api/players/{created.json()['id']}"
+    assert client.get(path).json()["description"] == "Creative midfielder."
+    edited = client.patch(
+        path + "?season=2026/2027", json={"description": "Captain."}, headers=ORIGIN
+    )
+    assert edited.status_code == 200
+    assert client.get(path).json()["description"] == "Captain."
+    assert (
+        client.patch(
+            path + "?season=2026/2027", json={"description": None}, headers=ORIGIN
+        ).status_code
+        == 200
+    )
+    assert client.delete(path, headers=ORIGIN).status_code == 204
+    client.cookies.clear()
+    profile = client.get(path)
+    assert profile.status_code == 200
+    assert profile.json()["active"] is False
+    assert profile.json()["description"] is None
+    assert profile.json()["goals"] == profile.json()["assists"] == 0
+    assert profile.json()["squads"] == [
+        {"season": "2026/2027", "position": "Forwards", "shirt_number": 9}
+    ]
+    assert "normalized_email" not in profile.json()
+    assert client.get(f"/api/players/{uuid4()}").status_code == 404
+    assert client.get("/api/players/not-a-uuid").status_code == 422

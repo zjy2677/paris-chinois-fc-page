@@ -1,6 +1,17 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "profile.label": "球员档案",
+  "profile.description": "球员简介",
+  "profile.back": "返回球队阵容",
+  "profile.notFound": "未找到该球员",
+  "profile.noDescription": "暂无球员简介。",
+  "profile.noSquad": "暂无赛季记录。",
+  "profile.statistics": "生涯累计数据",
+  "profile.goals": "进球",
+  "profile.assists": "助攻",
+  "profile.statsHint": "统计所有已记录比赛与赛季，不含乌龙球。数据以俱乐部录入的进球记录为准。",
+  "profile.seasons": "效力赛季",
   "squad.manage": "管理球队阵容",
   "squad.adminHint": "添加球员并更新本赛季信息。",
   "squad.add": "添加球员",

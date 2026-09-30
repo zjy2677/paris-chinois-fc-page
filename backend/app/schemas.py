@@ -80,6 +80,7 @@ class StandingsResponse(BaseModel):
 
 
 class PlayerResponse(BaseModel):
+    description: str | None
     active: bool
     id: UUID
     display_name: str
