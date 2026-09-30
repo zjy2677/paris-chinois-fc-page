@@ -1,0 +1,6 @@
+# CI tools, resolved with Python 3.12; runtime dependencies stay in requirements.lock.
+ruff==0.16.9
+pytest==9.1.1
+iniconfig==2.3.0
+pluggy==1.6.0
+pygments==2.21.0
