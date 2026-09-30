@@ -3,16 +3,15 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
-
 from app import blog, guestbook
 from app.auth.dependencies import _attempts, current_user
 from app.config import get_settings
 from app.database import get_db
 from app.models import BlogPost, GuestbookMessage, User
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 CONTENT = {"title": "A club story", "body": "Our team played a great match together."}

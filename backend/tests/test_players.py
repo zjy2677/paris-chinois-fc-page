@@ -2,16 +2,15 @@ import os
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
-
 from app.auth.dependencies import _attempts
 from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
 from app.models import Player, SquadMembership, User
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 BODY = {
