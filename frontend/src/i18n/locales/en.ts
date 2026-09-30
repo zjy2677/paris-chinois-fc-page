@@ -1,4 +1,16 @@
 export const en = {
+  "profile.label": "Player profile",
+  "profile.description": "Player description",
+  "profile.back": "Back to squad",
+  "profile.notFound": "Player not found",
+  "profile.noDescription": "No player description yet.",
+  "profile.noSquad": "No squad membership recorded.",
+  "profile.statistics": "Recorded career totals",
+  "profile.goals": "Goals",
+  "profile.assists": "Assists",
+  "profile.statsHint":
+    "Across all recorded matches and seasons. Own goals are excluded; totals reflect the goal records added by the club.",
+  "profile.seasons": "Squad history",
   "squad.manage": "Manage squad",
   "squad.adminHint": "Add players and keep their season details up to date.",
   "squad.add": "Add player",

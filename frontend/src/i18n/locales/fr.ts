@@ -1,6 +1,18 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "profile.label": "Profil du joueur",
+  "profile.description": "Présentation du joueur",
+  "profile.back": "Retour à l’effectif",
+  "profile.notFound": "Joueur introuvable",
+  "profile.noDescription": "Aucune présentation pour le moment.",
+  "profile.noSquad": "Aucune saison enregistrée.",
+  "profile.statistics": "Totaux de carrière enregistrés",
+  "profile.goals": "Buts",
+  "profile.assists": "Passes décisives",
+  "profile.statsHint":
+    "Tous matchs et saisons enregistrés confondus, hors buts contre son camp. Ces totaux reposent sur les buts saisis par le club.",
+  "profile.seasons": "Historique dans l’effectif",
   "squad.manage": "Gérer l’effectif",
   "squad.adminHint": "Ajoutez des joueurs et actualisez leurs informations pour la saison.",
   "squad.add": "Ajouter un joueur",

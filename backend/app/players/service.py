@@ -2,18 +2,25 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import Player, SquadMembership
+from ..models import MatchGoal, Player, SquadMembership
 from ..schemas import PlayerResponse
-from .schemas import PlayerCreate, PlayerInput, PlayerUpdate
+from .schemas import (
+    PlayerCreate,
+    PlayerInput,
+    PlayerProfileResponse,
+    PlayerUpdate,
+    SquadSeasonResponse,
+)
 
 
 def response(player: Player, squad: SquadMembership) -> PlayerResponse:
     """Combine permanent player details and season membership into an API response."""
     return PlayerResponse(
+        description=player.description,
         id=player.id,
         display_name=player.display_name,
         photo_url=player.photo_url,
@@ -38,6 +45,7 @@ def commit(db: Session):
 def create(db: Session, body: PlayerCreate):
     """Persist a player and their season membership, then return the combined response."""
     player = Player(
+        description=body.description,
         display_name=body.display_name,
         photo_url=str(body.photo_url) if body.photo_url else None,
         active=body.active,
@@ -69,6 +77,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
         raise HTTPException(404, "Player is not in this season's squad")
     changes = body.model_dump(exclude_unset=True)
     values = {
+        "description": player.description,
         "display_name": player.display_name,
         "photo_url": player.photo_url,
         "active": player.active,
@@ -82,6 +91,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
         raise HTTPException(422, "Invalid player details or photo URL") from None
     player.display_name, player.active = validated.display_name, validated.active
     player.photo_url = str(validated.photo_url) if validated.photo_url else None
+    player.description = validated.description
     squad.shirt_number, squad.position = validated.shirt_number, validated.position
     commit(db)
     return response(player, squad)
@@ -94,3 +104,40 @@ def deactivate(db: Session, player_id: UUID):
         raise HTTPException(404, "Player not found")
     player.active = False
     db.commit()
+
+
+def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
+    player = db.get(Player, player_id)
+    if player is None:
+        raise HTTPException(404, "Player not found")
+    squads = db.scalars(
+        select(SquadMembership)
+        .where(SquadMembership.player_id == player_id)
+        .order_by(SquadMembership.season_label.desc())
+    )
+    # Count events directly, without joining memberships and multiplying goal rows.
+    goals = db.scalar(
+        select(func.count())
+        .select_from(MatchGoal)
+        .where(MatchGoal.scorer_id == player_id, MatchGoal.goal_type != "own_goal")
+    )
+    assists = db.scalar(
+        select(func.count())
+        .select_from(MatchGoal)
+        .where(MatchGoal.assist_player_id == player_id, MatchGoal.goal_type != "own_goal")
+    )
+    return PlayerProfileResponse(
+        id=player.id,
+        display_name=player.display_name,
+        photo_url=player.photo_url,
+        description=player.description,
+        active=player.active,
+        squads=[
+            SquadSeasonResponse(
+                season=s.season_label, position=s.position, shirt_number=s.shirt_number
+            )
+            for s in squads
+        ],
+        goals=goals or 0,
+        assists=assists or 0,
+    )

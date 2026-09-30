@@ -165,6 +165,7 @@ def players(db: Session, season: str, include_inactive: bool = False):
     )
     return [
         PlayerResponse(
+            description=p.description,
             id=p.id,
             display_name=p.display_name,
             active=p.active,

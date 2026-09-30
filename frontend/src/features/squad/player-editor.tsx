@@ -15,6 +15,7 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
   const { t, c } = useI18n();
   const cache = useQueryClient();
   const [name, setName] = useState(player?.display_name ?? "");
+  const [description, setDescription] = useState(player?.description ?? "");
   const [photo, setPhoto] = useState(player?.photo_url ?? "");
   const [number, setNumber] = useState(player?.shirt_number?.toString() ?? "");
   const [position, setPosition] = useState<Player["position"]>(player?.position ?? "Midfielders");
@@ -23,6 +24,7 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
       savePlayer(
         {
           display_name: name.trim(),
+          description: description.trim() || null,
           photo_url: photo.trim() || null,
           shirt_number: number ? Number(number) : null,
           position,
@@ -52,6 +54,17 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
           }}
         >
           <fieldset disabled={save.isPending} className="space-y-4 disabled:opacity-60">
+            <label className="block text-sm">
+              {t("profile.description")}
+              <textarea
+                aria-label={t("profile.description")}
+                maxLength={2000}
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={inputClass}
+              />
+            </label>
             <label className="block text-sm">
               {t("squad.name")}
               <input

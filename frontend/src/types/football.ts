@@ -25,6 +25,7 @@ export type Standing = {
   points: number;
 };
 export type Player = {
+  description: string | null;
   id: string;
   display_name: string;
   photo_url: string | null;

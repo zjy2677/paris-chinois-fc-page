@@ -25,6 +25,7 @@ const player: Player = {
   id: "test-player",
   display_name: "Test Player",
   photo_url: null,
+  description: null,
   shirt_number: 1,
   season: "2026/2027",
   active: true,
@@ -58,7 +59,7 @@ for (const language of languages) {
           <LeagueTable />
           <MatchCard match={nextMatch} />
           <ContactForm />
-          <PlayerCard player={player} />
+          <PlayerCard player={player} showProfileLink={false} />
         </I18nProvider>
       </QueryClientProvider>,
     );

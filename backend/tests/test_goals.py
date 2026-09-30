@@ -8,7 +8,7 @@ from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
-from app.models import CompetitionSeason, Match, Player, Team, User
+from app.models import CompetitionSeason, Match, Player, SquadMembership, Team, User
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -213,3 +213,47 @@ def test_goal_rules_allow_unknown_and_own_goals(goals_client):
     assert unknown.status_code == 201
     assert unknown.json()["scorer"] is None
     assert client.get(base).json()[-1]["id"] == unknown.json()["id"]
+
+
+def test_profile_totals_follow_goal_changes_without_membership_duplicates(goals_client):
+    client, db, matches, teams, players, _ = goals_client
+    db.add_all(
+        [
+            SquadMembership(
+                player_id=players[0].id, season_label=season, position="Forwards", shirt_number=11
+            )
+            for season in ("2025/2026", "2026/2027")
+        ]
+    )
+    db.commit()
+    base = f"/api/matches/{matches[0].id}/goals"
+    body = goal_body(teams, players)
+    regular = client.post(base, json=body, headers=ORIGIN).json()
+    penalty = client.post(
+        f"/api/matches/{matches[1].id}/goals", json=body | {"goal_type": "penalty"}, headers=ORIGIN
+    )
+    assert penalty.status_code == 201
+    own = client.post(
+        base, json=body | {"goal_type": "own_goal", "assist_player_id": None}, headers=ORIGIN
+    )
+    assert own.status_code == 201
+    assert client.post(base, json={"team_id": str(teams[0].id)}, headers=ORIGIN).status_code == 201
+    scorer_path = f"/api/players/{players[0].id}"
+    assistant_path = f"/api/players/{players[1].id}"
+    profile = client.get(scorer_path).json()
+    assert profile["goals"] == 2
+    assert profile["assists"] == 0
+    assert [s["season"] for s in profile["squads"]] == ["2026/2027", "2025/2026"]
+    assert client.get(assistant_path).json()["assists"] == 2
+    assert client.get(assistant_path).json()["squads"] == []
+    changed = client.patch(
+        f"{base}/{regular['id']}",
+        json={"scorer_id": str(players[1].id), "assist_player_id": None},
+        headers=ORIGIN,
+    )
+    assert changed.status_code == 200
+    assert client.get(scorer_path).json()["goals"] == 1
+    assert client.get(assistant_path).json()["goals"] == 1
+    assert client.get(assistant_path).json()["assists"] == 1
+    assert client.delete(f"{base}/{regular['id']}", headers=ORIGIN).status_code == 204
+    assert client.get(assistant_path).json()["goals"] == 0

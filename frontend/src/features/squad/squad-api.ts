@@ -15,7 +15,29 @@ export class PlayerApiError extends Error {
     super(`Player request failed: ${status}`);
   }
 }
-export type PlayerInput = Pick<Player, "display_name" | "photo_url" | "shirt_number" | "position">;
+export type PlayerInput = Pick<
+  Player,
+  "display_name" | "photo_url" | "shirt_number" | "position" | "description"
+>;
+export type PlayerProfile = Pick<
+  Player,
+  "id" | "display_name" | "photo_url" | "description" | "active"
+> & {
+  squads: Pick<Player, "season" | "position" | "shirt_number">[];
+  goals: number;
+  assists: number;
+};
+
+export function usePlayerProfile(id: string) {
+  return useQuery({
+    queryKey: ["players", "profile", id],
+    enabled: typeof window !== "undefined",
+    queryFn: ({ signal }) =>
+      playerRequest<PlayerProfile>(`/players/${encodeURIComponent(id)}`, "GET", undefined, signal),
+    retry: (count, error) =>
+      !(error instanceof PlayerApiError && [404, 422].includes(error.status)) && count < 1,
+  });
+}
 /** Send a credentialed player API request; return JSON or undefined for 204, and throw on HTTP errors. */
 export async function playerRequest<T>(
   path: string,
