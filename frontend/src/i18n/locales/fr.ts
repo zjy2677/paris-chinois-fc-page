@@ -1,6 +1,35 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "squad.manage": "Gérer l’effectif",
+  "squad.adminHint": "Ajoutez des joueurs et actualisez leurs informations pour la saison.",
+  "squad.add": "Ajouter un joueur",
+  "squad.edit": "Modifier",
+  "squad.showInactive": "Afficher les joueurs inactifs",
+  "squad.inactive": "Inactif",
+  "squad.deactivate": "Désactiver",
+  "squad.restore": "Réactiver",
+  "squad.deactivateTitle": "Désactiver {name} ?",
+  "squad.deactivateHint":
+    "Le joueur sera masqué dans l’effectif public pour toutes les saisons. Son historique sera conservé. Vous pourrez le réactiver.",
+  "squad.loading": "Chargement de l’effectif…",
+  "squad.loadError": "Impossible de charger l’effectif.",
+  "squad.retry": "Réessayer",
+  "squad.empty": "Aucun joueur à afficher pour le moment.",
+  "squad.formIntro": "Informations du joueur · {season}",
+  "squad.name": "Nom affiché",
+  "squad.position": "Poste",
+  "squad.number": "Numéro de maillot (facultatif)",
+  "squad.photo": "Lien de la photo (facultatif)",
+  "squad.photoHelp":
+    "Utilisez un lien HTTPS public vers une image. Laissez vide pour afficher une silhouette.",
+  "squad.numberConflict":
+    "Ce numéro est déjà attribué pour cette saison, y compris à un joueur inactif.",
+  "squad.saveError":
+    "Enregistrement impossible. Vérifiez les informations et vos droits administrateur, puis réessayez.",
+  "squad.cancel": "Annuler",
+  "squad.saving": "Enregistrement…",
+  "squad.save": "Enregistrer",
   "blog.pagination": "Pages du blog",
   "blog.previous": "Précédent",
   "blog.next": "Suivant",
@@ -89,7 +118,8 @@ export const fr = {
   "auth.role.admin": "Administrateur",
   "auth.changePhoto": "Changer la photo de profil",
   "auth.uploading": "Envoi en cours…",
-  "auth.uploadError": "La photo n’a pas pu être envoyée. Utilisez un PNG, JPEG ou WebP de moins de 2 Mo.",
+  "auth.uploadError":
+    "La photo n’a pas pu être envoyée. Utilisez un PNG, JPEG ou WebP de moins de 2 Mo.",
   "auth.myspace": "Mon espace",
   "auth.loading": "Chargement de votre espace…",
   "auth.loginForMyspace": "Connectez-vous pour voir votre espace.",

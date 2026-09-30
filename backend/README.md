@@ -140,3 +140,118 @@ Password-reset email delivery remains unavailable. Rate limiting allows
 10 auth mutation attempts per IP per minute per process, using bounded memory. Before
 multiple workers or public deployment, use a shared/edge rate limiter and configure trusted
 proxy addresses. HTTPS, restricted database access and a production secret are required.
+
+## Match goals and assists
+
+`match_goals` stores one row per goal, linked to `matches`, the credited `teams` row,
+and optional scorer/assist `players` rows. Player references are not user accounts.
+Players with historical goals should be marked inactive rather than deleted; the foreign
+keys restrict deletion. Deleting a match also deletes its goal records.
+
+Run `alembic upgrade head` from `backend/` before starting the updated API. The new
+revision is `f0ad5f64a5bd`, following `1a2b3c4d5e6f`.
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| GET | `/api/matches/{match_id}/goals` | Public |
+| POST | `/api/matches/{match_id}/goals` | Admin |
+| PATCH | `/api/matches/{match_id}/goals/{goal_id}` | Admin |
+| DELETE | `/api/matches/{match_id}/goals/{goal_id}` | Admin |
+
+`GET /api/matches/{match_id}` also includes `goals`, with nested `scorer` and
+`assist_player` objects containing each player's ID and display name. Known times sort
+first, with unknown times last. Existing match and video fields are unchanged.
+
+Example POST body (replace placeholders with existing UUIDs):
+
+```json
+{
+  "team_id": "credited-team-uuid",
+  "scorer_id": "player-uuid",
+  "assist_player_id": "another-player-uuid",
+  "minute": 45,
+  "stoppage_minute": 2,
+  "goal_type": "regular"
+}
+```
+
+Only `team_id` is required. `goal_type` defaults to `regular`; other supported values are
+`penalty` and `own_goal` (penalty shootouts are not included). The team must be one of the
+match's two teams. For an own goal, `team_id` is the team awarded the goal and `scorer_id`
+is the player who scored against their own team, if known; assists are forbidden.
+A scorer cannot assist their own goal. Unknown scorers, assists, and times can remain null.
+There is no player-to-team roster validation yet because the current player/squad schema
+does not associate players with team IDs.
+
+PATCH accepts only fields being changed; explicit null clears an optional field. For
+example, `{"assist_player_id": null}` removes an assist. `team_id` and `goal_type` cannot
+be cleared. Partial updates validate the resulting complete record. A goal ID belonging
+to another match returns 404.
+
+Manual check: log in as an admin, send POST from the allowed frontend origin with the
+session cookie, check the goal in GET match details, PATCH its minute or assist, then
+DELETE it. Repeat writes as a `user` or `player` to verify 403; signed-out requests return
+401. Browser writes require `credentials: "include"` and the existing trusted-origin
+protection. No frontend editing controls are added in this backend step.
+
+FLA imports continue to own match scores; they do not modify goal records. Recorded
+goals may be incomplete and are not required to equal the official score. Future player
+goal totals must exclude `own_goal` rows.
+
+Regression tests against a migrated disposable PostgreSQL database:
+
+```sh
+TEST_DATABASE_URL=postgresql+psycopg://USER:PASSWORD@localhost/club_test \
+  .venv/bin/pytest -q tests/test_goals.py
+```
+
+## Squad player management
+
+The Team page reads `GET /api/players?season=2026/2027` rather than bundled sample
+players. It shows an empty state until real players are added. Sign in as an admin and
+open `/team` to add, edit, deactivate, or restore players. All form text is available in
+French, English, and Chinese.
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| GET | `/api/players?season=2026/2027` | Public, active players only |
+| GET | `/api/admin/players?season=2026/2027` | Admin, includes inactive players |
+| POST | `/api/players` | Admin |
+| PATCH | `/api/players/{player_id}?season=2026/2027` | Admin |
+| DELETE | `/api/players/{player_id}` | Admin, deactivates the player |
+
+Example POST body:
+
+```json
+{
+  "display_name": "Player name",
+  "season": "2026/2027",
+  "position": "Midfielders",
+  "shirt_number": 8,
+  "photo_url": "https://your-image-host.example/player.jpg"
+}
+```
+
+`photo_url` and `shirt_number` are optional. Photos must use a public HTTPS image link
+without embedded credentials; the frontend displays a silhouette if absent or broken.
+This feature stores a link, not an uploaded image. Positions are `Goalkeepers`,
+`Defenders`, `Midfielders`, or `Forwards`. A shirt number must be a positive integer
+and unique within the season, including inactive players; conflicts return 409.
+
+PATCH accepts only changed fields. Use null to clear the photo or shirt number, or
+`{"active": true}` to restore a player. The display name, photo, and active status belong
+to the permanent `players` record; position and shirt number belong to that season's
+`squad_memberships` record. Deactivation applies across seasons and preserves historical
+goals and assists. User accounts and player records remain separate; adding a player
+does not grant an account the player role. No new player migration is needed because
+these tables and the photo column already exist.
+
+Writes use the existing admin dependency, trusted-origin check, session cookie, and
+rate limit. Test manually by adding a player as an admin, refreshing the public Team
+page, editing their number/photo, deactivating them, then enabling Show inactive players
+to restore them. Regular users and players cannot access management endpoints (403);
+signed-out requests return 401.
+
+Run `tests/test_players.py` against a migrated disposable PostgreSQL database using
+`TEST_DATABASE_URL` as shown above. Tests cover CRUD, preserved history, role and origin
+checks, season filtering, optional-field clearing, invalid input, and shirt conflicts.

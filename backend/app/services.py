@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from .goals.service import list_goals
 from .highlights import embed_url
 from .models import (
     CompetitionSeason,
@@ -96,6 +97,7 @@ def match_detail(db: Session, match_id: UUID):
     ).all()
     return {
         **serialize_match(row).model_dump(),
+        "goals": list_goals(db, match_id),
         "videos": [
             {
                 "id": video.id,
@@ -151,17 +153,19 @@ def standings(db: Session, competition_season_id: UUID | None):
     )
 
 
-def players(db: Session, season: str):
+def players(db: Session, season: str, include_inactive: bool = False):
     rows = db.execute(
         select(Player, SquadMembership)
         .join(SquadMembership)
-        .where(Player.active.is_(True), SquadMembership.season_label == season)
+        .where(SquadMembership.season_label == season)
+        .where(True if include_inactive else Player.active.is_(True))
         .order_by(SquadMembership.position, SquadMembership.shirt_number, Player.id)
     )
     return [
         PlayerResponse(
             id=p.id,
             display_name=p.display_name,
+            active=p.active,
             photo_url=p.photo_url,
             season=s.season_label,
             shirt_number=s.shirt_number,
