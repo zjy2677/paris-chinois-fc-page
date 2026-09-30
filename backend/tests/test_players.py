@@ -25,6 +25,7 @@ BODY = {
 
 @pytest.fixture
 def player_client(monkeypatch):
+    """Yield an admin client and database session, rolling back test changes on teardown."""
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         pytest.skip("Requires disposable TEST_DATABASE_URL")
@@ -55,6 +56,7 @@ def player_client(monkeypatch):
 
 
 def test_player_lifecycle_and_public_visibility(player_client):
+    """Verify editing, deactivation, restoration, and season visibility preserve player records."""
     client, db, user = player_client
     response = client.post("/api/players", json=BODY, headers=ORIGIN)
     assert response.status_code == 201, response.text
@@ -84,6 +86,7 @@ def test_player_lifecycle_and_public_visibility(player_client):
 
 @pytest.mark.parametrize("role, status", [(None, 401), ("user", 403), ("player", 403)])
 def test_admin_required(player_client, role, status):
+    """Verify signed-out and non-admin callers cannot manage players or list inactive players."""
     client, db, user = player_client
     if role is None:
         client.cookies.clear()
@@ -116,6 +119,7 @@ def test_admin_required(player_client, role, status):
     ],
 )
 def test_invalid_create_and_edit(player_client, change):
+    """Verify invalid player fields are rejected during both creation and partial updates."""
     client, _, _ = player_client
     assert client.post("/api/players", json=BODY | change, headers=ORIGIN).status_code == 422
     created = client.post("/api/players", json=BODY, headers=ORIGIN).json()
@@ -128,6 +132,7 @@ def test_invalid_create_and_edit(player_client, change):
 
 
 def test_duplicate_shirt_and_invalid_targets(player_client):
+    """Verify origin checks, shirt conflicts, missing targets, and invalid season rejection."""
     client, _, _ = player_client
     assert client.post("/api/players", json=BODY).status_code == 403
     one = client.post("/api/players", json=BODY, headers=ORIGIN).json()

@@ -19,6 +19,7 @@ ORIGIN = {"Origin": "http://localhost:4173"}
 
 @pytest.fixture
 def goals_client(monkeypatch):
+    """Yield an admin client with seeded matches and players; roll back changes on teardown."""
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
         pytest.skip("Requires disposable TEST_DATABASE_URL")
@@ -79,6 +80,7 @@ def goals_client(monkeypatch):
 
 
 def goal_body(teams, players):
+    """Build a valid stoppage-time goal payload using the supplied team and players."""
     return {
         "team_id": str(teams[0].id),
         "scorer_id": str(players[0].id),
@@ -89,6 +91,7 @@ def goal_body(teams, players):
 
 
 def test_goal_lifecycle_and_public_match_detail(goals_client):
+    """Verify goal CRUD and public player details without altering the official match score."""
     client, db, matches, teams, players, user = goals_client
     base = f"/api/matches/{matches[0].id}"
     response = client.post(f"{base}/goals", json=goal_body(teams, players), headers=ORIGIN)
@@ -117,6 +120,7 @@ def test_goal_lifecycle_and_public_match_detail(goals_client):
 
 @pytest.mark.parametrize("role, expected", [(None, 401), ("user", 403), ("player", 403)])
 def test_goal_mutations_require_admin(goals_client, role, expected):
+    """Verify signed-out and non-admin callers cannot create, edit, or delete goals."""
     client, db, matches, teams, players, user = goals_client
     if role is None:
         client.cookies.clear()
@@ -134,6 +138,7 @@ def test_goal_mutations_require_admin(goals_client, role, expected):
 
 
 def test_goals_are_scoped_to_match_and_origin(goals_client):
+    """Verify writes require a trusted origin and goals cannot be edited through another match."""
     client, _, matches, teams, players, _ = goals_client
     base = f"/api/matches/{matches[0].id}/goals"
     body = goal_body(teams, players)
@@ -167,6 +172,7 @@ def test_goals_are_scoped_to_match_and_origin(goals_client):
     ],
 )
 def test_invalid_goal_input(goals_client, change):
+    """Verify invalid create and patch payloads are rejected without changing the stored minute."""
     client, _, matches, teams, players, _ = goals_client
     base = f"/api/matches/{matches[0].id}/goals"
     body = goal_body(teams, players)
@@ -177,6 +183,7 @@ def test_invalid_goal_input(goals_client, change):
 
 
 def test_goal_rules_allow_unknown_and_own_goals(goals_client):
+    """Verify cross-field rules, valid own goals, and unknown goals sorting after timed goals."""
     client, _, matches, teams, players, _ = goals_client
     base = f"/api/matches/{matches[0].id}/goals"
     body = goal_body(teams, players)

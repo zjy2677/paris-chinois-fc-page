@@ -18,6 +18,7 @@ class PlayerInput(BaseModel):
     @field_validator("photo_url")
     @classmethod
     def secure_photo(cls, value):
+        """Accept null or an HTTPS photo URL without credentials and at most 2048 characters."""
         if value is not None and (value.scheme != "https" or value.username or value.password):
             raise ValueError("Use a public HTTPS photo URL without credentials")
         if value is not None and len(str(value)) > 2048:
@@ -31,6 +32,7 @@ class PlayerCreate(PlayerInput):
     @field_validator("season")
     @classmethod
     def consecutive_season(cls, value):
+        """Return the season label if its end year immediately follows its start year."""
         start, end = map(int, value.split("/"))
         if end != start + 1:
             raise ValueError("Season years must be consecutive")
@@ -47,6 +49,7 @@ class PlayerUpdate(BaseModel):
 
     @model_validator(mode="after")
     def required_fields_cannot_be_cleared(self):
+        """Reject empty updates and explicit nulls for name, position, or active status."""
         for name in ("display_name", "position", "active"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")

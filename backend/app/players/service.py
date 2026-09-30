@@ -12,6 +12,7 @@ from .schemas import PlayerCreate, PlayerInput, PlayerUpdate
 
 
 def response(player: Player, squad: SquadMembership) -> PlayerResponse:
+    """Combine permanent player details and season membership into an API response."""
     return PlayerResponse(
         id=player.id,
         display_name=player.display_name,
@@ -24,6 +25,7 @@ def response(player: Player, squad: SquadMembership) -> PlayerResponse:
 
 
 def commit(db: Session):
+    """Commit pending changes, rolling back integrity failures as HTTP 409 shirt conflicts."""
     try:
         db.commit()
     except IntegrityError:
@@ -34,6 +36,7 @@ def commit(db: Session):
 
 
 def create(db: Session, body: PlayerCreate):
+    """Persist a player and their season membership, then return the combined response."""
     player = Player(
         display_name=body.display_name,
         photo_url=str(body.photo_url) if body.photo_url else None,
@@ -53,6 +56,7 @@ def create(db: Session, body: PlayerCreate):
 
 
 def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
+    """Lock player and season records, validate merged fields, and commit their updates."""
     player = db.get(Player, player_id, with_for_update=True)
     if player is None:
         raise HTTPException(404, "Player not found")
@@ -84,6 +88,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
 
 
 def deactivate(db: Session, player_id: UUID):
+    """Mark an existing player inactive while preserving memberships and goal history."""
     player = db.get(Player, player_id, with_for_update=True)
     if player is None:
         raise HTTPException(404, "Player not found")

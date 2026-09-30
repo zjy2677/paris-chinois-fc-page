@@ -87,6 +87,7 @@ def list_matches(
 
 
 def match_detail(db: Session, match_id: UUID):
+    """Return match details with recorded goals and ready videos, or None if absent."""
     row = db.execute(match_query().where(Match.id == match_id)).first()
     if row is None:
         return None
@@ -154,6 +155,7 @@ def standings(db: Session, competition_season_id: UUID | None):
 
 
 def players(db: Session, season: str, include_inactive: bool = False):
+    """Return the season squad ordered by position and shirt number, active only by default."""
     rows = db.execute(
         select(Player, SquadMembership)
         .join(SquadMembership)

@@ -12,6 +12,7 @@ import { PlayerEditor } from "./player-editor";
 import { PositionFilter, type Position } from "./position-filter";
 import { positions, playerRequest, SQUAD_SEASON, useSquad } from "./squad-api";
 
+/** Render the filtered season squad and player management controls for administrators. */
 export function SquadPage() {
   const { t, c } = useI18n();
   const account = useAccount();

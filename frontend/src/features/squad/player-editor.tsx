@@ -10,6 +10,7 @@ import { positions } from "./squad-api";
 
 const inputClass =
   "mt-2 w-full border border-border bg-background px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary";
+/** Edit or create a season player, refreshing squad queries and closing after a successful save. */
 export function PlayerEditor({ player, onClose }: { player?: Player; onClose: () => void }) {
   const { t, c } = useI18n();
   const cache = useQueryClient();

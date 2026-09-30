@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Player } from "@/types/football";
+/** Render player details, a photo with silhouette fallback, and optional management actions. */
 export function PlayerCard({ player, actions }: { player: Player; actions?: ReactNode }) {
   const { c, t } = useI18n();
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);

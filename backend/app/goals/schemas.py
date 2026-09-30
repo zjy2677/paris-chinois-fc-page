@@ -20,6 +20,7 @@ class GoalCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_goal(self):
+        """Reject self-assists, assisted own goals, and stoppage time without a minute."""
         if self.scorer_id is not None and self.scorer_id == self.assist_player_id:
             raise ValueError("A scorer cannot assist their own goal")
         if self.goal_type == "own_goal" and self.assist_player_id is not None:
