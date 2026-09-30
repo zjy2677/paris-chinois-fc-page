@@ -19,7 +19,17 @@ const nextMatch = {
   address: "",
   status: "scheduled" as const,
 };
-import { players } from "../src/data/players";
+import type { Player } from "../src/types/football";
+
+const player: Player = {
+  id: "test-player",
+  display_name: "Test Player",
+  photo_url: null,
+  shirt_number: 1,
+  season: "2026/2027",
+  active: true,
+  position: "Goalkeepers",
+};
 
 const languages: Language[] = ["en", "fr", "zh"];
 for (const language of languages) {
@@ -48,7 +58,7 @@ for (const language of languages) {
           <LeagueTable />
           <MatchCard match={nextMatch} />
           <ContactForm />
-          <PlayerCard player={players[0]!} />
+          <PlayerCard player={player} />
         </I18nProvider>
       </QueryClientProvider>,
     );
