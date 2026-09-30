@@ -1,6 +1,47 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "profile.label": "Profil du joueur",
+  "profile.description": "Présentation du joueur",
+  "profile.back": "Retour à l’effectif",
+  "profile.notFound": "Joueur introuvable",
+  "profile.noDescription": "Aucune présentation pour le moment.",
+  "profile.noSquad": "Aucune saison enregistrée.",
+  "profile.statistics": "Totaux de carrière enregistrés",
+  "profile.goals": "Buts",
+  "profile.assists": "Passes décisives",
+  "profile.statsHint":
+    "Tous matchs et saisons enregistrés confondus, hors buts contre son camp. Ces totaux reposent sur les buts saisis par le club.",
+  "profile.seasons": "Historique dans l’effectif",
+  "squad.manage": "Gérer l’effectif",
+  "squad.adminHint": "Ajoutez des joueurs et actualisez leurs informations pour la saison.",
+  "squad.add": "Ajouter un joueur",
+  "squad.edit": "Modifier",
+  "squad.showInactive": "Afficher les joueurs inactifs",
+  "squad.inactive": "Inactif",
+  "squad.deactivate": "Désactiver",
+  "squad.restore": "Réactiver",
+  "squad.deactivateTitle": "Désactiver {name} ?",
+  "squad.deactivateHint":
+    "Le joueur sera masqué dans l’effectif public pour toutes les saisons. Son historique sera conservé. Vous pourrez le réactiver.",
+  "squad.loading": "Chargement de l’effectif…",
+  "squad.loadError": "Impossible de charger l’effectif.",
+  "squad.retry": "Réessayer",
+  "squad.empty": "Aucun joueur à afficher pour le moment.",
+  "squad.formIntro": "Informations du joueur · {season}",
+  "squad.name": "Nom affiché",
+  "squad.position": "Poste",
+  "squad.number": "Numéro de maillot (facultatif)",
+  "squad.photo": "Lien de la photo (facultatif)",
+  "squad.photoHelp":
+    "Utilisez un lien HTTPS public vers une image. Laissez vide pour afficher une silhouette.",
+  "squad.numberConflict":
+    "Ce numéro est déjà attribué pour cette saison, y compris à un joueur inactif.",
+  "squad.saveError":
+    "Enregistrement impossible. Vérifiez les informations et vos droits administrateur, puis réessayez.",
+  "squad.cancel": "Annuler",
+  "squad.saving": "Enregistrement…",
+  "squad.save": "Enregistrer",
   "blog.pagination": "Pages du blog",
   "blog.previous": "Précédent",
   "blog.next": "Suivant",

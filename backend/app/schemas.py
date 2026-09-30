@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from .goals.schemas import GoalResponse
+
 
 class ORMResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -48,6 +50,7 @@ class VideoResponse(ORMResponse):
 
 class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
+    goals: list[GoalResponse]
 
 
 class MatchPage(BaseModel):
@@ -77,6 +80,8 @@ class StandingsResponse(BaseModel):
 
 
 class PlayerResponse(BaseModel):
+    description: str | None
+    active: bool
     id: UUID
     display_name: str
     photo_url: str | None
