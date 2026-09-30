@@ -15,7 +15,12 @@ def upgrade():
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("content_type", sa.String(length=50), nullable=False),
         sa.Column("data", sa.LargeBinary(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
