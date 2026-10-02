@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -12,7 +13,7 @@ class ORMResponse(BaseModel):
 
 class TeamResponse(ORMResponse):
     id: UUID
-    fla_team_id: int
+    fla_team_id: int | None
     name: str
     logo_url: str | None
 
@@ -39,6 +40,18 @@ class MatchResponse(BaseModel):
     away_score: int | None
     source_url: str
     last_synced_at: datetime
+    source_type: str
+
+
+class MatchEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    player_id: UUID | None
+    player_name: str | None
+    assist_player_id: UUID | None
+    assist_player_name: str | None
+    minute: int | None
+    sequence: int
 
 
 class VideoResponse(ORMResponse):
@@ -50,7 +63,36 @@ class VideoResponse(ORMResponse):
 
 class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
+    description: str | None
+    events: list[MatchEventResponse]
     goals: list[GoalResponse]
+
+
+class MatchEventInput(BaseModel):
+    event_type: Literal["goal", "yellow_card", "red_card"]
+    player_id: UUID | None = None
+    assist_player_id: UUID | None = None
+    minute: int | None = Field(None, ge=0, le=130)
+
+
+class MatchRecordUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    description: str | None = Field(None, max_length=10000)
+    home_score: int | None = Field(None, ge=0, le=99)
+    away_score: int | None = Field(None, ge=0, le=99)
+    events: list[MatchEventInput] = Field(default_factory=list, max_length=100)
+
+
+class ManualMatchCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    opponent_name: str = Field(min_length=1, max_length=200)
+    competition_name: str = Field(default="Friendly", min_length=1, max_length=200)
+    season_label: str = Field(default="2026/2027", pattern=r"^\d{4}/\d{4}$")
+    kickoff_at: datetime | None = None
+    is_home: bool = True
+    home_score: int | None = Field(None, ge=0, le=99)
+    away_score: int | None = Field(None, ge=0, le=99)
+    description: str | None = Field(None, max_length=10000)
 
 
 class MatchPage(BaseModel):

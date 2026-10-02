@@ -7,10 +7,13 @@ import { useMatch, ApiError } from "./league-api";
 import { DataState } from "./data-state";
 import { MatchCard } from "./match-card";
 import { HighlightPlayer } from "./highlight-player";
+import { useAccount } from "@/features/auth/auth-api";
+import { MatchRecordEditor } from "./match-record-editor";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t } = useI18n();
   const query = useMatch(id);
+  const account = useAccount();
   if (query.isPending || query.isError) {
     const missing = query.error instanceof ApiError && [404, 422].includes(query.error.status);
     return (
@@ -45,6 +48,48 @@ export function MatchDetailPage({ id }: { id: string }) {
         <div className="mt-8">
           <MatchCard match={match} showDetails={false} />
         </div>
+        {account.data?.role === "admin" && <MatchRecordEditor match={match} />}
+        {match.events.length > 0 && (
+          <section className="mt-10" aria-labelledby="match-events">
+            <h2 id="match-events" className="font-display text-4xl font-bold uppercase">
+              {t("match.keyEvents")}
+            </h2>
+            <ul className="mt-5 divide-y divide-border border-y border-border">
+              {match.events.map((event) => (
+                <li key={event.id} className="flex items-center gap-4 py-3">
+                  <span className="w-12 tabular-nums text-muted-foreground">
+                    {event.minute === null ? "—" : `${event.minute}'`}
+                  </span>
+                  <span aria-hidden="true">
+                    {event.event_type === "goal"
+                      ? "⚽"
+                      : event.event_type === "yellow_card"
+                        ? "🟨"
+                        : "🟥"}
+                  </span>
+                  <span className="font-semibold">
+                    {event.player_name ?? t("match.unknownScorer")}
+                  </span>
+                  {event.assist_player_name && (
+                    <span className="text-sm text-muted-foreground">
+                      {t("match.assistedBy", { name: event.assist_player_name })}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {match.description && (
+          <section className="mt-10" aria-labelledby="match-description">
+            <h2 id="match-description" className="font-display text-4xl font-bold uppercase">
+              {t("match.description")}
+            </h2>
+            <p className="mt-5 whitespace-pre-line leading-7 text-muted-foreground">
+              {match.description}
+            </p>
+          </section>
+        )}
         <section className="mt-10" aria-labelledby="match-highlights">
           <h2 id="match-highlights" className="font-display text-4xl font-bold uppercase">
             {t("match.highlights")}
