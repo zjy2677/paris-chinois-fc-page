@@ -3,8 +3,11 @@ language: en-US
 
 reviews:
   auto_review:
-    enabled: true
+    # The branch-gate workflow opts dev-targeted PRs in with this label.
+    enabled: false
+    labels:
+      - "coderabbit-review"
     drafts: false
     base_branches:
-      - ".*"
+      - "^dev$"
     auto_incremental_review: true

@@ -124,6 +124,43 @@ class MatchEvent(Identity, Base):
     sequence: Mapped[int]
 
 
+class MatchGoal(Identity, Base):
+    __tablename__ = "match_goals"
+    __table_args__ = (
+        CheckConstraint("goal_type IN ('regular','penalty','own_goal')", name="goal_type_valid"),
+        CheckConstraint("minute IS NULL OR minute >= 0", name="goal_minute_valid"),
+        CheckConstraint(
+            "stoppage_minute IS NULL OR (minute IS NOT NULL AND stoppage_minute > 0)",
+            name="goal_stoppage_valid",
+        ),
+        CheckConstraint("scorer_id <> assist_player_id", name="goal_different_players"),
+        CheckConstraint(
+            "goal_type <> 'own_goal' OR assist_player_id IS NULL", name="own_goal_no_assist"
+        ),
+    )
+    match_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("matches.id", ondelete="CASCADE"), index=True
+    )
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), index=True
+    )
+    scorer_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), index=True
+    )
+    assist_player_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), index=True
+    )
+    minute: Mapped[int | None]
+    stoppage_minute: Mapped[int | None]
+    goal_type: Mapped[str] = mapped_column(String(20), default="regular", server_default="regular")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    scorer: Mapped["Player | None"] = relationship(foreign_keys=[scorer_id])
+    assist_player: Mapped["Player | None"] = relationship(foreign_keys=[assist_player_id])
+
+
 class SyncRun(Identity, Base):
     __tablename__ = "sync_runs"
     dataset: Mapped[str] = mapped_column(String(30))
@@ -174,6 +211,7 @@ class Player(Identity, Base):
     __tablename__ = "players"
     display_name: Mapped[str] = mapped_column(String(150))
     photo_url: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(default=True)
 
 
@@ -270,7 +308,7 @@ class User(Identity, Base):
 class UserAvatar(Identity, Base):
     __tablename__ = "user_avatars"
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True
+        ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
     content_type: Mapped[str] = mapped_column(String(50))
     data: Mapped[bytes] = mapped_column(LargeBinary)

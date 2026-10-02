@@ -10,33 +10,32 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: alembic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   alembic-head:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
 
       - name: Install Alembic
-        run: python -m pip install --disable-pip-version-check "alembic>=1.14,<2"
+        run: python -m pip install --disable-pip-version-check -c backend/requirements.lock alembic
 
       - name: Require one migration head
-        shell: bash
-        run: |
-          set -euo pipefail
-          heads="$(python -m alembic heads)"
-          printf '%s\n' "$heads"
-          count="$(printf '%s\n' "$heads" | awk '/\(head\)$/ { count += 1 } END { print count + 0 }')"
-          if [[ "$count" -ne 1 ]]; then
-            echo "Expected exactly one Alembic head; found $count." >&2
-            exit 1
-          fi
+        run: python scripts/check_alembic_heads.py
+
+      - name: Verify multiple-head failure detection
+        run: python -m unittest discover -s scripts/tests -v

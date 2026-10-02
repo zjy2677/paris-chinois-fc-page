@@ -36,8 +36,12 @@ export type Standing = {
   points: number;
 };
 export type Player = {
+  description: string | null;
   id: string;
-  name: string;
-  number: number;
+  display_name: string;
+  photo_url: string | null;
+  shirt_number: number | null;
+  season: string;
+  active: boolean;
   position: "Goalkeepers" | "Defenders" | "Midfielders" | "Forwards";
 };

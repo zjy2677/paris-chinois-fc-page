@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from .goals.schemas import GoalResponse
+
 
 class ORMResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -63,6 +65,7 @@ class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
     description: str | None
     events: list[MatchEventResponse]
+    goals: list[GoalResponse]
 
 
 class MatchEventInput(BaseModel):
@@ -119,6 +122,8 @@ class StandingsResponse(BaseModel):
 
 
 class PlayerResponse(BaseModel):
+    description: str | None
+    active: bool
     id: UUID
     display_name: str
     photo_url: str | None

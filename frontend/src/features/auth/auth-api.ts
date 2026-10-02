@@ -41,7 +41,6 @@ export function useAccount() {
   return useQuery<Account | null>({
     queryKey: ["auth", "me"],
     enabled: typeof window !== "undefined",
-    initialData: null,
     retry: false,
     staleTime: 0,
     queryFn: async ({ signal }) => {

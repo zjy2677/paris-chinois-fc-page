@@ -4,7 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth.router import router as auth_router
 from .blog import router as blog_router
 from .config import get_settings
+from .goals.router import router as goals_router
 from .guestbook import router as guestbook_router
+from .players.router import router as players_router
 from .profile import router as profile_router
 from .routers import router
 
@@ -22,3 +24,6 @@ app.include_router(auth_router)
 app.include_router(blog_router)
 app.include_router(guestbook_router)
 app.include_router(profile_router)
+app.include_router(goals_router)
+
+app.include_router(players_router)

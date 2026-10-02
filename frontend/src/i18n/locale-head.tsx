@@ -28,9 +28,10 @@ export function LocaleHead() {
   const { t } = useI18n();
   const page = pages[path];
   const match = path.startsWith("/matches/");
-  const title = `${match ? t("match.details") : t(page?.title ?? "Page not found")} — Paris Chinois FC`;
+  const player = path.startsWith("/team/player_");
+  const title = `${player ? t("profile.label") : match ? t("match.details") : t(page?.title ?? "Page not found")} — Paris Chinois FC`;
   const description = t(
-    (match ? "match.highlights" : page?.description) ??
+    (player ? "profile.description" : match ? "match.highlights" : page?.description) ??
       "The page you're looking for doesn't exist or has been moved.",
   );
   return (
