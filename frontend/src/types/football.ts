@@ -18,8 +18,8 @@ export type Match = {
 export type MatchEvent = {
   id?: string;
   event_type: "goal" | "yellow_card" | "red_card";
-  player_id: string;
-  player_name?: string;
+  player_id: string | null;
+  player_name?: string | null;
   assist_player_id: string | null;
   assist_player_name?: string | null;
   minute: number | null;

@@ -46,8 +46,8 @@ class MatchResponse(BaseModel):
 class MatchEventResponse(BaseModel):
     id: UUID
     event_type: str
-    player_id: UUID
-    player_name: str
+    player_id: UUID | None
+    player_name: str | None
     assist_player_id: UUID | None
     assist_player_name: str | None
     minute: int | None
@@ -70,7 +70,7 @@ class MatchDetail(MatchResponse):
 
 class MatchEventInput(BaseModel):
     event_type: Literal["goal", "yellow_card", "red_card"]
-    player_id: UUID
+    player_id: UUID | None = None
     assist_player_id: UUID | None = None
     minute: int | None = Field(None, ge=0, le=130)
 

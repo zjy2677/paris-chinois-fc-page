@@ -139,6 +139,8 @@ export const zh = {
   "match.yellowCard": "黄牌",
   "match.redCard": "红牌",
   "match.noAssist": "无助攻",
+  "match.unknownScorer": "进球者未知",
+  "match.goalCountMismatch": "我方比分为 {score}，但当前有 {count} 条进球记录。",
   "match.minute": "分钟",
   "match.removeEvent": "删除事件",
   "match.addGoal": "添加进球",

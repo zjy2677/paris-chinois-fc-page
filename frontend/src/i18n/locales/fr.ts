@@ -146,6 +146,8 @@ export const fr = {
   "match.yellowCard": "Carton jaune",
   "match.redCard": "Carton rouge",
   "match.noAssist": "Sans passe décisive",
+  "match.unknownScorer": "Buteur inconnu",
+  "match.goalCountMismatch": "Le score du club est de {score}, mais {count} buts sont enregistrés.",
   "match.minute": "Minute",
   "match.removeEvent": "Supprimer l’événement",
   "match.addGoal": "Ajouter un but",

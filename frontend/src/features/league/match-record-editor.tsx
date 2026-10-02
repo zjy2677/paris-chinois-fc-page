@@ -8,6 +8,31 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { usePlayers, useSaveMatchRecord, type MatchDetail } from "./league-api";
 
 type EditableEvent = MatchEvent & { key: string };
+const unknownGoal = (): EditableEvent => ({
+  key: crypto.randomUUID(),
+  event_type: "goal",
+  player_id: null,
+  assist_player_id: null,
+  minute: null,
+});
+const reconcileGoals = (events: EditableEvent[], target: number) => {
+  const goals = events.filter((event) => event.event_type === "goal");
+  if (goals.length < target) {
+    return [...events, ...Array.from({ length: target - goals.length }, unknownGoal)];
+  }
+  let excess = goals.length - target;
+  if (excess === 0) return events;
+  return [...events]
+    .reverse()
+    .filter((event) => {
+      if (excess > 0 && event.event_type === "goal" && event.player_id === null) {
+        excess -= 1;
+        return false;
+      }
+      return true;
+    })
+    .reverse();
+};
 
 export function MatchRecordEditor({ match }: { match: MatchDetail }) {
   const { t } = useI18n();
@@ -18,22 +43,30 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
   const [homeScore, setHomeScore] = useState(match.score?.[0]?.toString() ?? "");
   const [awayScore, setAwayScore] = useState(match.score?.[1]?.toString() ?? "");
   const [events, setEvents] = useState<EditableEvent[]>([]);
+  const clubIsHome = match.home.flaId === 322;
+  const clubScore = Number(clubIsHome ? homeScore || 0 : awayScore || 0);
+  const goalCount = events.filter((event) => event.event_type === "goal").length;
 
   useEffect(() => {
     setDescription(match.description ?? "");
     setHomeScore(match.score?.[0]?.toString() ?? "");
     setAwayScore(match.score?.[1]?.toString() ?? "");
-    setEvents(match.events.map((event) => ({ ...event, key: event.id ?? crypto.randomUUID() })));
-  }, [match]);
+    const initial = match.events.map((event) => ({
+      ...event,
+      key: event.id ?? crypto.randomUUID(),
+    }));
+    const score = match.score?.[clubIsHome ? 0 : 1] ?? 0;
+    setEvents(reconcileGoals(initial, score));
+  }, [clubIsHome, match]);
 
-  const addEvent = (event_type: MatchEvent["event_type"]) => {
+  const addCard = () => {
     const player = players.data?.[0];
     if (!player) return;
     setEvents((current) => [
       ...current,
       {
         key: crypto.randomUUID(),
-        event_type,
+        event_type: "yellow_card",
         player_id: player.id,
         assist_player_id: null,
         minute: null,
@@ -44,6 +77,25 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
     setEvents((current) =>
       current.map((event) => (event.key === key ? { ...event, ...values } : event)),
     );
+  const changeScore = (side: "home" | "away", value: string) => {
+    if (side === "home") setHomeScore(value);
+    else setAwayScore(value);
+    const isClubScore = (side === "home") === clubIsHome;
+    if (isClubScore) setEvents((current) => reconcileGoals(current, Number(value || 0)));
+  };
+  const removeEvent = (event: EditableEvent) => {
+    setEvents((current) => {
+      if (event.event_type !== "goal") return current.filter((item) => item.key !== event.key);
+      const currentGoals = current.filter((item) => item.event_type === "goal").length;
+      return currentGoals > clubScore
+        ? current.filter((item) => item.key !== event.key)
+        : current.map((item) =>
+            item.key === event.key
+              ? { ...item, player_id: null, assist_player_id: null, minute: null }
+              : item,
+          );
+    });
+  };
 
   const submit = () => {
     const score = (value: string) => (value === "" ? null : Number(value));
@@ -86,7 +138,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
               min="0"
               type="number"
               value={homeScore}
-              onChange={(e) => setHomeScore(e.target.value)}
+              onChange={(e) => changeScore("home", e.target.value)}
             />
           </label>
           <span className="pb-2">—</span>
@@ -97,7 +149,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
               min="0"
               type="number"
               value={awayScore}
-              onChange={(e) => setAwayScore(e.target.value)}
+              onChange={(e) => changeScore("away", e.target.value)}
             />
           </label>
         </div>
@@ -111,25 +163,33 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
             key={event.key}
             className="grid gap-3 border-t border-border pt-4 md:grid-cols-[140px_1fr_1fr_100px_auto]"
           >
+            {event.event_type === "goal" ? (
+              <span className="flex h-9 items-center px-3 text-sm">{t("match.goal")}</span>
+            ) : (
+              <select
+                className="h-9 border border-input bg-background px-3 text-sm"
+                value={event.event_type}
+                onChange={(e) =>
+                  update(event.key, {
+                    event_type: e.target.value as "yellow_card" | "red_card",
+                  })
+                }
+              >
+                <option value="yellow_card">{t("match.yellowCard")}</option>
+                <option value="red_card">{t("match.redCard")}</option>
+              </select>
+            )}
             <select
               className="h-9 border border-input bg-background px-3 text-sm"
-              value={event.event_type}
+              value={event.player_id ?? ""}
               onChange={(e) =>
                 update(event.key, {
-                  event_type: e.target.value as MatchEvent["event_type"],
-                  assist_player_id: e.target.value === "goal" ? event.assist_player_id : null,
+                  player_id: e.target.value || null,
+                  ...(e.target.value ? {} : { assist_player_id: null }),
                 })
               }
             >
-              <option value="goal">{t("match.goal")}</option>
-              <option value="yellow_card">{t("match.yellowCard")}</option>
-              <option value="red_card">{t("match.redCard")}</option>
-            </select>
-            <select
-              className="h-9 border border-input bg-background px-3 text-sm"
-              value={event.player_id}
-              onChange={(e) => update(event.key, { player_id: e.target.value })}
-            >
+              {event.event_type === "goal" && <option value="">{t("match.unknownScorer")}</option>}
               {players.data?.map((player) => (
                 <option key={player.id} value={player.id}>
                   {player.name}
@@ -169,9 +229,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
               aria-label={t("match.removeEvent")}
               size="icon"
               variant="ghost"
-              onClick={() =>
-                setEvents((current) => current.filter((item) => item.key !== event.key))
-              }
+              onClick={() => removeEvent(event)}
             >
               <Trash2 />
             </Button>
@@ -179,25 +237,16 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
         ))}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => addEvent("goal")}
-          disabled={!players.data?.length}
-        >
-          <Plus />
-          {t("match.addGoal")}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => addEvent("yellow_card")}
-          disabled={!players.data?.length}
-        >
+        <Button type="button" variant="outline" onClick={addCard} disabled={!players.data?.length}>
           <Plus />
           {t("match.addCard")}
         </Button>
       </div>
+      {goalCount !== clubScore && (
+        <p className="mt-4 text-sm text-destructive" role="alert">
+          {t("match.goalCountMismatch", { score: clubScore, count: goalCount })}
+        </p>
+      )}
       <label className="mt-8 block text-sm font-medium">
         {t("match.description")}
         <Textarea
@@ -213,7 +262,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
         </p>
       )}
       <div className="mt-6 flex gap-3">
-        <Button onClick={submit} disabled={save.isPending}>
+        <Button onClick={submit} disabled={save.isPending || goalCount !== clubScore}>
           {save.isPending ? t("auth.pending") : t("blog.saveChanges")}
         </Button>
         <Button variant="ghost" onClick={() => setEditing(false)}>

@@ -53,7 +53,9 @@ def serialize_match(row):
         competition_kind=(
             "cup"
             if competition.fla_cup_id is not None
-            else "custom" if match.source_type == "manual" else "league"
+            else "custom"
+            if match.source_type == "manual"
+            else "league"
         ),
         home_team=TeamResponse.model_validate(home),
         away_team=TeamResponse.model_validate(away),
@@ -106,7 +108,7 @@ def match_detail(db: Session, match_id: UUID):
     scorer, assistant = aliased(Player), aliased(Player)
     events = db.execute(
         select(MatchEvent, scorer, assistant)
-        .join(scorer, MatchEvent.player_id == scorer.id)
+        .outerjoin(scorer, MatchEvent.player_id == scorer.id)
         .outerjoin(assistant, MatchEvent.assist_player_id == assistant.id)
         .where(MatchEvent.match_id == match_id)
         .order_by(MatchEvent.sequence, MatchEvent.id)
@@ -129,7 +131,7 @@ def match_detail(db: Session, match_id: UUID):
                 "id": event.id,
                 "event_type": event.event_type,
                 "player_id": event.player_id,
-                "player_name": player.display_name,
+                "player_name": player.display_name if player else None,
                 "assist_player_id": event.assist_player_id,
                 "assist_player_name": assist.display_name if assist else None,
                 "minute": event.minute,

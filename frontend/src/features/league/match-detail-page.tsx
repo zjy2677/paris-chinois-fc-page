@@ -67,7 +67,9 @@ export function MatchDetailPage({ id }: { id: string }) {
                         ? "🟨"
                         : "🟥"}
                   </span>
-                  <span className="font-semibold">{event.player_name}</span>
+                  <span className="font-semibold">
+                    {event.player_name ?? t("match.unknownScorer")}
+                  </span>
                   {event.assist_player_name && (
                     <span className="text-sm text-muted-foreground">
                       {t("match.assistedBy", { name: event.assist_player_name })}

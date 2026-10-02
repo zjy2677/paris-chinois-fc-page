@@ -116,7 +116,9 @@ class MatchEvent(Identity, Base):
     )
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
     event_type: Mapped[str] = mapped_column(String(20))
-    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="RESTRICT"))
+    player_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT")
+    )
     assist_player_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("players.id", ondelete="RESTRICT")
     )

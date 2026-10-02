@@ -154,10 +154,24 @@ def update_match_record(
         raise HTTPException(422, "Both scores must be supplied together")
     if match.source_type == "manual" and body.home_score is not None:
         match.home_score, match.away_score, match.status = body.home_score, body.away_score, "final"
-    player_ids = {event.player_id for event in body.events} | {
+    club = db.scalar(select(Team).where(Team.fla_team_id == 322))
+    if club is None:
+        raise HTTPException(409, "Club team is unavailable")
+    club_score = match.home_score if match.home_team_id == club.id else match.away_score
+    goal_count = sum(event.event_type == "goal" for event in body.events)
+    if goal_count != (club_score or 0):
+        raise HTTPException(
+            422,
+            f"Club goal records ({goal_count}) must equal the club score ({club_score or 0})",
+        )
+    if any(event.event_type != "goal" and event.player_id is None for event in body.events):
+        raise HTTPException(422, "Card events require a player")
+    player_ids = {event.player_id for event in body.events if event.player_id} | {
         event.assist_player_id for event in body.events if event.assist_player_id
     }
-    existing = set(db.scalars(select(Player.id).where(Player.id.in_(player_ids)))) if player_ids else set()
+    existing = (
+        set(db.scalars(select(Player.id).where(Player.id.in_(player_ids)))) if player_ids else set()
+    )
     if existing != player_ids:
         raise HTTPException(422, "Every event player must exist")
     if any(event.event_type != "goal" and event.assist_player_id for event in body.events):
