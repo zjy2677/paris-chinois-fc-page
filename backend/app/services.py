@@ -7,6 +7,8 @@ from .highlights import embed_url
 from .models import (
     CompetitionSeason,
     Match,
+    MatchEvent,
+    MatchReport,
     MatchVideo,
     Player,
     SquadMembership,
@@ -47,7 +49,11 @@ def serialize_match(row):
             not in {"home_team", "away_team", "venue", "competition_name", "competition_kind"}
         },
         competition_name=competition.competition_name,
-        competition_kind="cup" if competition.fla_cup_id is not None else "league",
+        competition_kind=(
+            "cup"
+            if competition.fla_cup_id is not None
+            else "custom" if match.source_type == "manual" else "league"
+        ),
         home_team=TeamResponse.model_validate(home),
         away_team=TeamResponse.model_validate(away),
         venue=VenueResponse.model_validate(venue) if venue else None,
@@ -94,6 +100,15 @@ def match_detail(db: Session, match_id: UUID):
         .where(MatchVideo.match_id == match_id, MatchVideo.status == "ready")
         .order_by(MatchVideo.created_at, MatchVideo.id)
     ).all()
+    report = db.scalar(select(MatchReport).where(MatchReport.match_id == match_id))
+    scorer, assistant = aliased(Player), aliased(Player)
+    events = db.execute(
+        select(MatchEvent, scorer, assistant)
+        .join(scorer, MatchEvent.player_id == scorer.id)
+        .outerjoin(assistant, MatchEvent.assist_player_id == assistant.id)
+        .where(MatchEvent.match_id == match_id)
+        .order_by(MatchEvent.sequence, MatchEvent.id)
+    ).all()
     return {
         **serialize_match(row).model_dump(),
         "videos": [
@@ -104,6 +119,20 @@ def match_detail(db: Session, match_id: UUID):
                 "embed_url": embed_url(video.video_url),
             }
             for video in videos
+        ],
+        "description": report.description if report else None,
+        "events": [
+            {
+                "id": event.id,
+                "event_type": event.event_type,
+                "player_id": event.player_id,
+                "player_name": player.display_name,
+                "assist_player_id": event.assist_player_id,
+                "assist_player_name": assist.display_name if assist else None,
+                "minute": event.minute,
+                "sequence": event.sequence,
+            }
+            for event, player, assist in events
         ],
     }
 

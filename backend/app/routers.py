@@ -1,5 +1,7 @@
 import hashlib
 import secrets
+import uuid
+from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -9,15 +11,27 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from . import services
-from .auth.dependencies import throttle, trusted_origin
+from .auth.dependencies import require_role, throttle, trusted_origin
 from .config import get_settings
 from .database import get_db
-from .models import ContactMessage, HomepageLike
+from .models import (
+    CompetitionSeason,
+    ContactMessage,
+    HomepageLike,
+    Match,
+    MatchEvent,
+    MatchReport,
+    Player,
+    Team,
+    User,
+)
 from .schemas import (
     ContactRequest,
     HomepageLikeResponse,
+    ManualMatchCreate,
     MatchDetail,
     MatchPage,
+    MatchRecordUpdate,
     PlayerResponse,
     StandingsResponse,
 )
@@ -27,6 +41,7 @@ DB = Annotated[Session, Depends(get_db)]
 LIKE_COOKIE_NAME = "pcfc_visitor"
 LIKE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 like_mutation = [Depends(trusted_origin), Depends(throttle)]
+admin_mutation = [Depends(trusted_origin), Depends(throttle)]
 
 
 def visitor_hash(token: str) -> str:
@@ -119,6 +134,114 @@ def match_detail(match_id: UUID, db: DB):
     if result is None:
         raise HTTPException(404, "Match not found")
     return result
+
+
+@router.put(
+    "/admin/matches/{match_id}/record",
+    response_model=MatchDetail,
+    dependencies=admin_mutation,
+)
+def update_match_record(
+    match_id: UUID,
+    body: MatchRecordUpdate,
+    db: DB,
+    user: Annotated[User, Depends(require_role("admin"))],
+):
+    match = db.get(Match, match_id)
+    if match is None:
+        raise HTTPException(404, "Match not found")
+    if (body.home_score is None) != (body.away_score is None):
+        raise HTTPException(422, "Both scores must be supplied together")
+    if match.source_type == "manual" and body.home_score is not None:
+        match.home_score, match.away_score, match.status = body.home_score, body.away_score, "final"
+    player_ids = {event.player_id for event in body.events} | {
+        event.assist_player_id for event in body.events if event.assist_player_id
+    }
+    existing = set(db.scalars(select(Player.id).where(Player.id.in_(player_ids)))) if player_ids else set()
+    if existing != player_ids:
+        raise HTTPException(422, "Every event player must exist")
+    if any(event.event_type != "goal" and event.assist_player_id for event in body.events):
+        raise HTTPException(422, "Only goals can have an assist")
+    report = db.scalar(select(MatchReport).where(MatchReport.match_id == match_id))
+    if report is None:
+        report = MatchReport(match_id=match_id, updated_by=user.id)
+        db.add(report)
+    report.description = body.description or None
+    report.updated_by = user.id
+    db.execute(delete(MatchEvent).where(MatchEvent.match_id == match_id))
+    db.add_all(
+        MatchEvent(match_id=match_id, sequence=index, **event.model_dump())
+        for index, event in enumerate(body.events)
+    )
+    db.commit()
+    return services.match_detail(db, match_id)
+
+
+@router.post(
+    "/admin/matches",
+    response_model=MatchDetail,
+    status_code=201,
+    dependencies=admin_mutation,
+)
+def create_manual_match(
+    body: ManualMatchCreate,
+    db: DB,
+    user: Annotated[User, Depends(require_role("admin"))],
+):
+    if (body.home_score is None) != (body.away_score is None):
+        raise HTTPException(422, "Both scores must be supplied together")
+    club = db.scalar(select(Team).where(Team.fla_team_id == 322))
+    if club is None:
+        raise HTTPException(409, "Club team must be synchronized before creating matches")
+    opponent = db.scalar(
+        select(Team).where(Team.fla_team_id.is_(None), Team.name == body.opponent_name)
+    )
+    if opponent is None:
+        opponent = Team(fla_team_id=None, name=body.opponent_name, short_name=None, logo_url=None)
+        db.add(opponent)
+        db.flush()
+    competition = db.scalar(
+        select(CompetitionSeason).where(
+            CompetitionSeason.fla_championship_id.is_(None),
+            CompetitionSeason.fla_cup_id.is_(None),
+            CompetitionSeason.competition_name == body.competition_name,
+            CompetitionSeason.season_label == body.season_label,
+        )
+    )
+    if competition is None:
+        competition = CompetitionSeason(
+            fla_championship_id=None,
+            fla_cup_id=None,
+            fla_season_id=0,
+            competition_name=body.competition_name,
+            division="Manual",
+            season_label=body.season_label,
+        )
+        db.add(competition)
+        db.flush()
+    now = datetime.now(timezone.utc)
+    match = Match(
+        competition_season_id=competition.id,
+        source_key=f"manual:{uuid.uuid4()}",
+        home_team_id=club.id if body.is_home else opponent.id,
+        away_team_id=opponent.id if body.is_home else club.id,
+        venue_id=None,
+        matchday=None,
+        leg="Friendly",
+        kickoff_at=body.kickoff_at,
+        status="final" if body.home_score is not None else "scheduled",
+        home_score=body.home_score,
+        away_score=body.away_score,
+        source_url="",
+        last_synced_at=now,
+        source_type="manual",
+    )
+    db.add(match)
+    db.flush()
+    if body.description:
+        db.add(MatchReport(match_id=match.id, description=body.description, updated_by=user.id))
+    db.commit()
+    return services.match_detail(db, match.id)
 
 
 @router.get("/standings", response_model=StandingsResponse)

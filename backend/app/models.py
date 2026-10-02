@@ -27,7 +27,7 @@ class Identity:
 
 class Team(Identity, Base):
     __tablename__ = "teams"
-    fla_team_id: Mapped[int] = mapped_column(unique=True)
+    fla_team_id: Mapped[int | None] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column(String(200))
     short_name: Mapped[str | None] = mapped_column(String(50))
     logo_url: Mapped[str | None] = mapped_column(Text)
@@ -39,7 +39,8 @@ class CompetitionSeason(Identity, Base):
         UniqueConstraint("fla_championship_id", "fla_season_id"),
         UniqueConstraint("fla_cup_id", "fla_season_id", name="uq_cup_season"),
         CheckConstraint(
-            "(fla_championship_id IS NULL) <> (fla_cup_id IS NULL)", name="one_competition_source"
+            "NOT (fla_championship_id IS NOT NULL AND fla_cup_id IS NOT NULL)",
+            name="one_competition_source",
         ),
     )
     fla_championship_id: Mapped[int | None]
@@ -70,6 +71,7 @@ class Match(Identity, Base):
         CheckConstraint(
             "status IN ('scheduled','final','postponed','cancelled','unknown')", name="match_status"
         ),
+        CheckConstraint("source_type IN ('synced','manual')", name="match_source_type"),
         Index("ix_matches_competition_kickoff", "competition_season_id", "kickoff_at"),
     )
     competition_season_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("competition_seasons.id"))
@@ -85,6 +87,41 @@ class Match(Identity, Base):
     away_score: Mapped[int | None]
     source_url: Mapped[str] = mapped_column(Text)
     last_synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    source_type: Mapped[str] = mapped_column(String(20), default="synced", server_default="synced")
+
+
+class MatchReport(Identity, Base):
+    __tablename__ = "match_reports"
+    match_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("matches.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    description: Mapped[str | None] = mapped_column(Text)
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class MatchEvent(Identity, Base):
+    __tablename__ = "match_events"
+    __table_args__ = (
+        CheckConstraint("event_type IN ('goal','yellow_card','red_card')", name="event_type"),
+        CheckConstraint("minute IS NULL OR minute BETWEEN 0 AND 130", name="event_minute"),
+        CheckConstraint(
+            "event_type = 'goal' OR assist_player_id IS NULL", name="assist_only_for_goal"
+        ),
+        CheckConstraint("player_id <> assist_player_id", name="scorer_not_assistant"),
+        Index("ix_match_events_match_sequence", "match_id", "sequence"),
+    )
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
+    event_type: Mapped[str] = mapped_column(String(20))
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="RESTRICT"))
+    assist_player_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT")
+    )
+    minute: Mapped[int | None]
+    sequence: Mapped[int]
 
 
 class SyncRun(Identity, Base):

@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import type { Match, Standing, Team } from "@/types/football";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Match, MatchEvent, Player, Standing, Team } from "@/types/football";
 
 const base = (import.meta.env?.["VITE_API_BASE_URL"] ?? "").replace(/\/$/, "");
 export class ApiError extends Error {
@@ -12,7 +12,7 @@ async function get<T>(path: string, signal: AbortSignal): Promise<T> {
   if (!response.ok) throw new ApiError(response.status);
   return response.json() as Promise<T>;
 }
-type ApiTeam = { id: string; fla_team_id: number; name: string; logo_url: string | null };
+type ApiTeam = { id: string; fla_team_id: number | null; name: string; logo_url: string | null };
 type ApiMatch = {
   id: string;
   competition_season_id: string;
@@ -21,7 +21,7 @@ type ApiMatch = {
   venue: { name: string; address: string } | null;
   kickoff_at: string | null;
   matchday: number | null;
-  competition_kind: "league" | "cup";
+  competition_kind: "league" | "cup" | "custom";
   competition_name: string;
   leg: string;
   status: Match["status"];
@@ -29,6 +29,7 @@ type ApiMatch = {
   away_score: number | null;
   source_url: string;
   last_synced_at: string;
+  source_type: "synced" | "manual";
 };
 type ApiStanding = {
   team: ApiTeam;
@@ -44,7 +45,7 @@ const team = (t: ApiTeam): Team => ({
   id: t.id,
   name: t.name,
   short: t.name,
-  flaId: t.fla_team_id,
+  ...(t.fla_team_id !== null ? { flaId: t.fla_team_id } : {}),
 });
 export const toMatch = (m: ApiMatch): Match => ({
   id: m.id,
@@ -60,6 +61,7 @@ export const toMatch = (m: ApiMatch): Match => ({
   address: m.venue?.address ?? "",
   status: m.status,
   score: m.home_score !== null && m.away_score !== null ? [m.home_score, m.away_score] : undefined,
+  sourceType: m.source_type,
 });
 export function useMatches() {
   return useQuery({
@@ -115,6 +117,22 @@ export function useStandings() {
   });
 }
 type Highlight = { id: string; title: string | null; embed_url: string | null };
+export type MatchDetail = Match & {
+  videos: Highlight[];
+  description: string | null;
+  events: MatchEvent[];
+};
+type ApiMatchDetail = ApiMatch & {
+  videos: Highlight[];
+  description: string | null;
+  events: MatchEvent[];
+};
+const toMatchDetail = (data: ApiMatchDetail): MatchDetail => ({
+  ...toMatch(data),
+  videos: data.videos,
+  description: data.description,
+  events: data.events,
+});
 export function useMatch(id: string) {
   return useQuery({
     queryKey: ["league", "match", id],
@@ -124,11 +142,69 @@ export function useMatch(id: string) {
     retry: (count, error) =>
       !(error instanceof ApiError && [404, 422].includes(error.status)) && count < 1,
     queryFn: async ({ signal }) => {
-      const data = await get<ApiMatch & { videos: Highlight[] }>(
-        `/matches/${encodeURIComponent(id)}`,
-        signal,
-      );
-      return { ...toMatch(data), videos: data.videos };
+      const data = await get<ApiMatchDetail>(`/matches/${encodeURIComponent(id)}`, signal);
+      return toMatchDetail(data);
     },
+  });
+}
+
+export function usePlayers() {
+  return useQuery({
+    queryKey: ["players", "2026/2027"],
+    queryFn: ({ signal }) =>
+      get<
+        Array<{
+          id: string;
+          display_name: string;
+          shirt_number: number | null;
+          position: Player["position"];
+        }>
+      >("/players", signal),
+    select: (rows) =>
+      rows.map((p) => ({
+        id: p.id,
+        name: p.display_name,
+        number: p.shirt_number ?? 0,
+        position: p.position,
+      })),
+  });
+}
+
+async function adminRequest<T>(path: string, method: "POST" | "PUT", body: unknown): Promise<T> {
+  const response = await fetch(`${base}/api/admin${path}`, {
+    method,
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new ApiError(response.status);
+  return response.json() as Promise<T>;
+}
+
+export function useSaveMatchRecord(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      description: string | null;
+      home_score: number | null;
+      away_score: number | null;
+      events: Omit<MatchEvent, "id" | "player_name" | "assist_player_name" | "sequence">[];
+    }) =>
+      adminRequest<ApiMatchDetail>(`/matches/${encodeURIComponent(id)}/record`, "PUT", body).then(
+        toMatchDetail,
+      ),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["league", "match", id], data);
+      void queryClient.invalidateQueries({ queryKey: ["league", "matches"] });
+    },
+  });
+}
+
+export function useCreateMatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      adminRequest<ApiMatchDetail>("/matches", "POST", body).then(toMatchDetail),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["league", "matches"] }),
   });
 }
