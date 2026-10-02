@@ -27,9 +27,7 @@ def upgrade() -> None:
         "matches",
         sa.Column("source_type", sa.String(20), server_default="synced", nullable=False),
     )
-    op.create_check_constraint(
-        "match_source_type", "matches", "source_type IN ('synced','manual')"
-    )
+    op.create_check_constraint("match_source_type", "matches", "source_type IN ('synced','manual')")
     op.create_table(
         "match_reports",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -55,7 +53,9 @@ def upgrade() -> None:
         sa.Column("sequence", sa.Integer(), nullable=False),
         sa.CheckConstraint("event_type IN ('goal','yellow_card','red_card')", name="event_type"),
         sa.CheckConstraint("minute IS NULL OR minute BETWEEN 0 AND 130", name="event_minute"),
-        sa.CheckConstraint("event_type = 'goal' OR assist_player_id IS NULL", name="assist_only_for_goal"),
+        sa.CheckConstraint(
+            "event_type = 'goal' OR assist_player_id IS NULL", name="assist_only_for_goal"
+        ),
         sa.CheckConstraint("player_id <> assist_player_id", name="scorer_not_assistant"),
         sa.ForeignKeyConstraint(["match_id"], ["matches.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["player_id"], ["players.id"], ondelete="RESTRICT"),
