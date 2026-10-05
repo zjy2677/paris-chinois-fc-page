@@ -214,7 +214,12 @@ def test_address_cleanup():
 
 @pytest.mark.parametrize(
     "url",
-    ["https://youtu.be/FQheFBefpgI?si=tracking", "https://www.youtube.com/watch?v=FQheFBefpgI"],
+    [
+        "https://youtu.be/FQheFBefpgI?si=tracking",
+        "https://www.youtube.com/watch?v=FQheFBefpgI",
+        "https://www.youtube.com/shorts/FQheFBefpgI",
+        "https://m.youtube.com/live/FQheFBefpgI?feature=share",
+    ],
 )
 def test_youtube_url_normalization(url):
     from app.highlights import canonical_url, embed_url

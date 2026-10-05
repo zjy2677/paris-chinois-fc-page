@@ -187,8 +187,45 @@ def test_description_lifecycle_and_public_profile(player_client):
     assert profile.json()["description"] is None
     assert profile.json()["goals"] == profile.json()["assists"] == 0
     assert profile.json()["squads"] == [
-        {"season": "2026/2027", "position": "Forwards", "shirt_number": 9}
+        {
+            "season": "2026/2027",
+            "position": "Forwards",
+            "alternate_positions": [],
+            "shirt_number": 9,
+        }
     ]
     assert "normalized_email" not in profile.json()
     assert client.get(f"/api/players/{uuid4()}").status_code == 404
     assert client.get("/api/players/not-a-uuid").status_code == 422
+
+
+def test_alternate_positions_and_uploaded_photo(player_client):
+    client, _, _ = player_client
+    created = client.post(
+        "/api/players",
+        json=BODY | {"alternate_positions": ["Midfielders", "Defenders"]},
+        headers=ORIGIN,
+    )
+    assert created.status_code == 201, created.text
+    player = created.json()
+    assert player["position"] == "Forwards"
+    assert player["alternate_positions"] == ["Midfielders", "Defenders"]
+    photo_path = f"/api/players/{player['id']}/photo"
+    png = b"\x89PNG\r\n\x1a\n" + b"test-image"
+    uploaded = client.put(photo_path, content=png, headers=ORIGIN | {"Content-Type": "image/png"})
+    assert uploaded.status_code == 204, uploaded.text
+    public = client.get("/api/players?season=2026/2027").json()[0]
+    assert public["has_uploaded_photo"] is True
+    image = client.get(photo_path)
+    assert image.status_code == 200 and image.content == png
+    assert image.headers["content-type"] == "image/png"
+
+
+def test_position_validation():
+    from app.players.schemas import PlayerCreate
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        PlayerCreate.model_validate(BODY | {"alternate_positions": ["Forwards"]})
+    with pytest.raises(ValidationError):
+        PlayerCreate.model_validate(BODY | {"alternate_positions": ["Defenders", "Defenders"]})

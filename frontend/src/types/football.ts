@@ -40,8 +40,10 @@ export type Player = {
   id: string;
   display_name: string;
   photo_url: string | null;
+  has_uploaded_photo: boolean;
   shirt_number: number | null;
   season: string;
   active: boolean;
   position: "Goalkeepers" | "Defenders" | "Midfielders" | "Forwards";
+  alternate_positions: Array<"Goalkeepers" | "Defenders" | "Midfielders" | "Forwards">;
 };

@@ -15,6 +15,7 @@ class PlayerInput(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
     position: Position
+    alternate_positions: list[Position] = Field(default_factory=list, max_length=3)
     active: bool = Field(default=True, strict=True)
 
     @field_validator("photo_url")
@@ -26,6 +27,14 @@ class PlayerInput(BaseModel):
         if value is not None and len(str(value)) > 2048:
             raise ValueError("Photo URL is too long")
         return value
+
+    @model_validator(mode="after")
+    def distinct_positions(self):
+        if self.position in self.alternate_positions:
+            raise ValueError("Primary position cannot also be an alternate position")
+        if len(set(self.alternate_positions)) != len(self.alternate_positions):
+            raise ValueError("Alternate positions must be unique")
+        return self
 
 
 class PlayerCreate(PlayerInput):
@@ -48,12 +57,13 @@ class PlayerUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
     position: Position | None = None
+    alternate_positions: list[Position] | None = Field(default=None, max_length=3)
     active: bool | None = Field(default=None, strict=True)
 
     @model_validator(mode="after")
     def required_fields_cannot_be_cleared(self):
         """Reject empty updates and explicit nulls for name, position, or active status."""
-        for name in ("display_name", "position", "active"):
+        for name in ("display_name", "position", "alternate_positions", "active"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         if not self.model_fields_set:
@@ -64,6 +74,7 @@ class PlayerUpdate(BaseModel):
 class SquadSeasonResponse(BaseModel):
     season: str
     position: str
+    alternate_positions: list[str]
     shirt_number: int | None
 
 
@@ -71,6 +82,7 @@ class PlayerProfileResponse(BaseModel):
     id: UUID
     display_name: str
     photo_url: str | None
+    has_uploaded_photo: bool
     description: str | None
     active: bool
     squads: list[SquadSeasonResponse]

@@ -9,6 +9,7 @@ import { MatchCard } from "./match-card";
 import { HighlightPlayer } from "./highlight-player";
 import { useAccount } from "@/features/auth/auth-api";
 import { MatchRecordEditor } from "./match-record-editor";
+import { HighlightEditor } from "./highlight-editor";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t } = useI18n();
@@ -56,25 +57,43 @@ export function MatchDetailPage({ id }: { id: string }) {
             </h2>
             <ul className="mt-5 divide-y divide-border border-y border-border">
               {match.events.map((event) => (
-                <li key={event.id} className="flex items-center gap-4 py-3">
-                  <span className="w-12 tabular-nums text-muted-foreground">
+                <li key={event.id} className="flex items-start gap-3 py-3 sm:items-center sm:gap-4">
+                  <span className="w-12 shrink-0 tabular-nums text-muted-foreground">
                     {event.minute === null ? "—" : `${event.minute}'`}
                   </span>
-                  <span aria-hidden="true">
+                  <span className="w-6 shrink-0 text-center" aria-hidden="true">
                     {event.event_type === "goal"
                       ? "⚽"
                       : event.event_type === "yellow_card"
                         ? "🟨"
                         : "🟥"}
                   </span>
-                  <span className="font-semibold">
-                    {event.player_name ?? t("match.unknownScorer")}
-                  </span>
-                  {event.assist_player_name && (
-                    <span className="text-sm text-muted-foreground">
-                      {t("match.assistedBy", { name: event.assist_player_name })}
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="font-semibold">
+                      {event.event_type !== "goal" && (
+                        <span
+                          className={
+                            event.event_type === "yellow_card"
+                              ? "mr-2 text-yellow-500"
+                              : "mr-2 text-red-500"
+                          }
+                        >
+                          {t(
+                            event.event_type === "yellow_card"
+                              ? "match.yellowCard"
+                              : "match.redCard",
+                          )}
+                        </span>
+                      )}
+                      {event.player_name ?? t("match.unknownScorer")}
                     </span>
-                  )}
+                    {event.assist_player_name && (
+                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <span aria-hidden="true">🎯</span>
+                        <span>{t("match.assistedBy", { name: event.assist_player_name })}</span>
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -94,6 +113,9 @@ export function MatchDetailPage({ id }: { id: string }) {
           <h2 id="match-highlights" className="font-display text-4xl font-bold uppercase">
             {t("match.highlights")}
           </h2>
+          {account.data?.role === "admin" && (
+            <HighlightEditor matchId={match.id} videos={match.videos} />
+          )}
           {videos.length > 0 ? (
             <div className="mt-6 space-y-8">
               {videos.map((video) => (

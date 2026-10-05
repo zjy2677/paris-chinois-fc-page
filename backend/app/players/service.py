@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import MatchGoal, Player, SquadMembership
+from ..models import MatchGoal, Player, PlayerPhoto, SquadMembership
 from ..schemas import PlayerResponse
 from .schemas import (
     PlayerCreate,
@@ -17,17 +17,21 @@ from .schemas import (
 )
 
 
-def response(player: Player, squad: SquadMembership) -> PlayerResponse:
+def response(
+    player: Player, squad: SquadMembership, has_uploaded_photo: bool = False
+) -> PlayerResponse:
     """Combine permanent player details and season membership into an API response."""
     return PlayerResponse(
         description=player.description,
         id=player.id,
         display_name=player.display_name,
         photo_url=player.photo_url,
+        has_uploaded_photo=has_uploaded_photo,
         active=player.active,
         season=squad.season_label,
         shirt_number=squad.shirt_number,
         position=squad.position,
+        alternate_positions=squad.alternate_positions or [],
     )
 
 
@@ -57,6 +61,7 @@ def create(db: Session, body: PlayerCreate):
         season_label=body.season,
         shirt_number=body.shirt_number,
         position=body.position,
+        alternate_positions=body.alternate_positions,
     )
     db.add(squad)
     commit(db)
@@ -83,6 +88,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
         "active": player.active,
         "shirt_number": squad.shirt_number,
         "position": squad.position,
+        "alternate_positions": squad.alternate_positions or [],
     }
 
     try:
@@ -91,10 +97,15 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
         raise HTTPException(422, "Invalid player details or photo URL") from None
     player.display_name, player.active = validated.display_name, validated.active
     player.photo_url = str(validated.photo_url) if validated.photo_url else None
+    if "photo_url" in changes:
+        uploaded = db.get(PlayerPhoto, player_id)
+        if uploaded is not None:
+            db.delete(uploaded)
     player.description = validated.description
     squad.shirt_number, squad.position = validated.shirt_number, validated.position
+    squad.alternate_positions = validated.alternate_positions
     commit(db)
-    return response(player, squad)
+    return response(player, squad, db.get(PlayerPhoto, player_id) is not None)
 
 
 def deactivate(db: Session, player_id: UUID):
@@ -130,11 +141,15 @@ def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
         id=player.id,
         display_name=player.display_name,
         photo_url=player.photo_url,
+        has_uploaded_photo=db.get(PlayerPhoto, player_id) is not None,
         description=player.description,
         active=player.active,
         squads=[
             SquadSeasonResponse(
-                season=s.season_label, position=s.position, shirt_number=s.shirt_number
+                season=s.season_label,
+                position=s.position,
+                alternate_positions=s.alternate_positions or [],
+                shirt_number=s.shirt_number,
             )
             for s in squads
         ],
