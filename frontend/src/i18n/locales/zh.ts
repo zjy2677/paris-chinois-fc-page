@@ -241,8 +241,8 @@ export const zh = {
   "Paris Chinois FC team together on a floodlit football pitch":
     "巴黎华人联合足球俱乐部在灯光球场上的合影",
   home: "首页",
-  league: "FLA 联赛",
-  team: "球队",
+  league: "比赛",
+  team: "球队阵容",
   about: "关于我们",
   news: "新闻 / 媒体",
   contact: "联系我们",

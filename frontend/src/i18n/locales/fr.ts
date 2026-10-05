@@ -255,8 +255,8 @@ export const fr = {
   "Paris Chinois FC team together on a floodlit football pitch":
     "L’équipe de Paris Chinois FC réunie sur un terrain de football éclairé",
   home: "Accueil",
-  league: "Ligue FLA",
-  team: "Équipe",
+  league: "Matchs",
+  team: "Effectif",
   about: "Le club",
   news: "Actualités / Médias",
   contact: "Contact",

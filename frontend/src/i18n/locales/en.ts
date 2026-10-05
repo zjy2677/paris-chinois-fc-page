@@ -250,8 +250,8 @@ export const en = {
   "Paris Chinois FC team together on a floodlit football pitch":
     "Paris Chinois FC team together on a floodlit football pitch",
   home: "Home",
-  league: "FLA League",
-  team: "Team",
+  league: "Matches",
+  team: "Squad",
   about: "About Us",
   news: "News / Media",
   contact: "Contact",
