@@ -119,7 +119,13 @@ function RootShell({ children }: { children: ReactNode }) {
           <LocaleHead />
           {children}
         </I18nProvider>
-        <Analytics />
+        <Analytics
+          beforeSend={(event) => {
+            // Account profile paths contain user IDs and must not enter analytics.
+            const url = new URL(event.url);
+            return /^\/myspace(?:\/|$)/.test(url.pathname) ? null : event;
+          }}
+        />
         <Scripts />
       </body>
     </html>
