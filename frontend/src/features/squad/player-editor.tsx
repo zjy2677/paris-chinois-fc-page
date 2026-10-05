@@ -4,7 +4,13 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Player } from "@/types/football";
-import { PlayerApiError, savePlayer, SQUAD_SEASON, uploadPlayerPhoto } from "./squad-api";
+import {
+  PlayerApiError,
+  PlayerPhotoUploadError,
+  savePlayer,
+  SQUAD_SEASON,
+  uploadPlayerPhoto,
+} from "./squad-api";
 
 import { positions } from "./squad-api";
 
@@ -197,7 +203,9 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
               {t(
                 save.error instanceof PlayerApiError && save.error.status === 409
                   ? "squad.numberConflict"
-                  : "squad.saveError",
+                  : save.error instanceof PlayerPhotoUploadError
+                    ? "squad.photoUploadError"
+                    : "squad.saveError",
               )}
             </p>
           )}

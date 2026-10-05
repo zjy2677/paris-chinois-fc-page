@@ -28,9 +28,13 @@ export function HighlightEditor({ matchId, videos }: { matchId: string; videos: 
   };
 
   const errorKey =
-    addVideo.error instanceof ApiError && addVideo.error.status === 409
-      ? "match.videoDuplicate"
-      : "match.videoInvalid";
+    addVideo.error instanceof ApiError
+      ? addVideo.error.status === 409
+        ? "match.videoDuplicate"
+        : addVideo.error.status === 422
+          ? "match.videoInvalid"
+          : "match.videoAddError"
+      : "match.videoAddError";
 
   return (
     <div className="mt-6 border border-border bg-card p-5 md:p-6">

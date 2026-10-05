@@ -26,10 +26,10 @@ export function PlayerCard({
       />
       <div className="border-t-2 border-primary p-4 md:p-5">
         <p className="eyebrow text-copper">{c(player.position.slice(0, -1))}</p>
-        {player.alternate_positions.length > 0 && (
+        {(player.alternate_positions ?? []).length > 0 && (
           <p className="mt-1 text-xs text-muted-foreground">
             {t("squad.alternateShort")}:{" "}
-            {player.alternate_positions.map((p) => c(p.slice(0, -1))).join(" · ")}
+            {(player.alternate_positions ?? []).map((p) => c(p.slice(0, -1))).join(" · ")}
           </p>
         )}
         <h3 className="mt-2 break-words font-display text-2xl font-bold uppercase leading-none md:text-3xl">

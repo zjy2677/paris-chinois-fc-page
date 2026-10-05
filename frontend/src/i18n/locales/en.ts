@@ -41,6 +41,8 @@ export const en = {
   "squad.numberConflict":
     "This shirt number is already assigned for this season, including inactive players.",
   "squad.saveError": "Unable to save. Check your details and admin access, then try again.",
+  "squad.photoUploadError":
+    "The player was saved, but the photo upload failed. Check the file and try again.",
   "squad.cancel": "Cancel",
   "squad.saving": "Saving…",
   "squad.save": "Save player",
@@ -198,6 +200,7 @@ export const en = {
   "match.youtubeHint": "Supports YouTube watch, short, live and youtu.be links.",
   "match.videoInvalid": "Enter a valid HTTPS YouTube link.",
   "match.videoDuplicate": "This YouTube video has already been added.",
+  "match.videoAddError": "The video could not be added. Please try again.",
   "match.deleteVideo": "Delete",
   "match.videoDeleteConfirm": "Delete this video from the match?",
   "match.videoDeleteError": "The video could not be deleted. Please try again.",

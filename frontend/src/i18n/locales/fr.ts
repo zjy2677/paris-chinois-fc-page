@@ -44,6 +44,8 @@ export const fr = {
     "Ce numéro est déjà attribué pour cette saison, y compris à un joueur inactif.",
   "squad.saveError":
     "Enregistrement impossible. Vérifiez les informations et vos droits administrateur, puis réessayez.",
+  "squad.photoUploadError":
+    "Le joueur a été enregistré, mais l’envoi de la photo a échoué. Vérifiez le fichier et réessayez.",
   "squad.cancel": "Annuler",
   "squad.saving": "Enregistrement…",
   "squad.save": "Enregistrer",
@@ -201,6 +203,7 @@ export const fr = {
   "match.youtubeHint": "Accepte les liens YouTube watch, Shorts, Live et youtu.be.",
   "match.videoInvalid": "Saisissez un lien YouTube HTTPS valide.",
   "match.videoDuplicate": "Cette vidéo YouTube a déjà été ajoutée.",
+  "match.videoAddError": "La vidéo n’a pas pu être ajoutée. Réessayez.",
   "match.deleteVideo": "Supprimer",
   "match.videoDeleteConfirm": "Supprimer cette vidéo du match ?",
   "match.videoDeleteError": "La vidéo n’a pas pu être supprimée. Réessayez.",

@@ -15,6 +15,7 @@ export class PlayerApiError extends Error {
     super(`Player request failed: ${status}`);
   }
 }
+export class PlayerPhotoUploadError extends PlayerApiError {}
 export type PlayerInput = Pick<
   Player,
   "display_name" | "shirt_number" | "position" | "alternate_positions" | "description"
@@ -89,7 +90,7 @@ export async function uploadPlayerPhoto(id: string, file: File): Promise<void> {
     headers: { "Content-Type": file.type },
     body: file,
   });
-  if (!response.ok) throw new PlayerApiError(response.status);
+  if (!response.ok) throw new PlayerPhotoUploadError(response.status);
 }
 
 export function playerPhotoUrl(player: Pick<Player, "id" | "photo_url" | "has_uploaded_photo">) {

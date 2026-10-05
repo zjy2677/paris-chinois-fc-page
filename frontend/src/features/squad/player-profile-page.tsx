@@ -83,8 +83,8 @@ export function PlayerProfilePage({ id }: { id: string }) {
                       <span className="font-semibold">{squad.season}</span>
                       <span className="text-muted-foreground">
                         {c(squad.position.slice(0, -1))}
-                        {squad.alternate_positions.length > 0
-                          ? ` · ${t("squad.alternateShort")}: ${squad.alternate_positions
+                        {(squad.alternate_positions ?? []).length > 0
+                          ? ` · ${t("squad.alternateShort")}: ${(squad.alternate_positions ?? [])
                               .map((position) => c(position.slice(0, -1)))
                               .join(" / ")}`
                           : ""}

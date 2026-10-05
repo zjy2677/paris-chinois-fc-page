@@ -113,7 +113,9 @@ export function MatchDetailPage({ id }: { id: string }) {
           <h2 id="match-highlights" className="font-display text-4xl font-bold uppercase">
             {t("match.highlights")}
           </h2>
-          {account.data?.role === "admin" && <HighlightEditor matchId={match.id} videos={videos} />}
+          {account.data?.role === "admin" && (
+            <HighlightEditor matchId={match.id} videos={match.videos} />
+          )}
           {videos.length > 0 ? (
             <div className="mt-6 space-y-8">
               {videos.map((video) => (
