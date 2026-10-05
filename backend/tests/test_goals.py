@@ -10,7 +10,7 @@ from app.database import get_db
 from app.main import app
 from app.models import CompetitionSeason, Match, Player, SquadMembership, Team, User
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
@@ -257,3 +257,45 @@ def test_profile_totals_follow_goal_changes_without_membership_duplicates(goals_
     assert client.get(assistant_path).json()["assists"] == 1
     assert client.delete(f"{base}/{regular['id']}", headers=ORIGIN).status_code == 204
     assert client.get(assistant_path).json()["goals"] == 0
+
+
+def test_match_record_rejects_neutral_fixture(goals_client):
+    client, db, matches, teams, _, _ = goals_client
+    if db.scalar(select(Team).where(Team.fla_team_id == 322)) is None:
+        teams[2].fla_team_id = 322
+    db.commit()
+    response = client.put(
+        f"/api/admin/matches/{matches[0].id}/record",
+        json={"description": "Should not save", "events": [{"event_type": "goal"}]},
+        headers=ORIGIN,
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Records can only be edited for club matches"
+    assert client.get(f"/api/matches/{matches[0].id}").json()["description"] is None
+
+
+@pytest.mark.parametrize("club_index", [0, 1])
+def test_match_record_rejects_self_assist_and_accepts_valid_pair(goals_client, club_index):
+    client, db, matches, teams, players, _ = goals_client
+    club = db.scalar(select(Team).where(Team.fla_team_id == 322))
+    match = matches[0]
+    if club is None:
+        teams[club_index].fla_team_id = 322
+    elif club_index == 0:
+        match.home_team_id = club.id
+    else:
+        match.away_team_id = club.id
+    db.commit()
+    count = match.home_score if club_index == 0 else match.away_score
+    events = [{"event_type": "goal"} for _ in range(count)]
+    events[0].update(player_id=str(players[0].id), assist_player_id=str(players[0].id))
+    path = f"/api/admin/matches/{match.id}/record"
+    response = client.put(path, json={"events": events}, headers=ORIGIN)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "A scorer cannot assist their own goal"
+    assert client.get(f"/api/matches/{match.id}").json()["events"] == []
+    events[0]["assist_player_id"] = str(players[1].id)
+    response = client.put(path, json={"description": "Saved", "events": events}, headers=ORIGIN)
+    assert response.status_code == 200, response.text
+    assert len(response.json()["events"]) == count
+    assert response.json()["description"] == "Saved"

@@ -34,7 +34,7 @@ export function MatchCard({
               ? t("league.groupStage")
               : match.stage}{" "}
           <span className="mx-2 text-muted-foreground">/</span>{" "}
-          {match.competitionKind === "cup" ? match.competitionName : t("FLA League")}
+          {match.competitionKind === "league" ? t("FLA League") : match.competitionName}
         </span>
         <span
           className={`eyebrow ${match.status === "scheduled" ? "text-primary" : "text-muted-foreground"}`}
