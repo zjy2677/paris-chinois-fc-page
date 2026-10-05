@@ -17,13 +17,13 @@ export class PlayerApiError extends Error {
 }
 export type PlayerInput = Pick<
   Player,
-  "display_name" | "photo_url" | "shirt_number" | "position" | "description"
->;
+  "display_name" | "shirt_number" | "position" | "alternate_positions" | "description"
+> & { photo_url?: string | null };
 export type PlayerProfile = Pick<
   Player,
-  "id" | "display_name" | "photo_url" | "description" | "active"
+  "id" | "display_name" | "photo_url" | "has_uploaded_photo" | "description" | "active"
 > & {
-  squads: Pick<Player, "season" | "position" | "shirt_number">[];
+  squads: Pick<Player, "season" | "position" | "alternate_positions" | "shirt_number">[];
   goals: number;
   assists: number;
 };
@@ -80,4 +80,20 @@ export function savePlayer(body: PlayerInput, id?: string) {
         body,
       )
     : playerRequest<Player>("/players", "POST", { ...body, season: SQUAD_SEASON });
+}
+
+export async function uploadPlayerPhoto(id: string, file: File): Promise<void> {
+  const response = await fetch(`${base}/api/players/${encodeURIComponent(id)}/photo`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!response.ok) throw new PlayerApiError(response.status);
+}
+
+export function playerPhotoUrl(player: Pick<Player, "id" | "photo_url" | "has_uploaded_photo">) {
+  return player.has_uploaded_photo
+    ? `${base}/api/players/${encodeURIComponent(player.id)}/photo`
+    : player.photo_url;
 }

@@ -12,6 +12,7 @@ from .models import (
     MatchReport,
     MatchVideo,
     Player,
+    PlayerPhoto,
     SquadMembership,
     StandingsRow,
     StandingsSnapshot,
@@ -188,8 +189,9 @@ def standings(db: Session, competition_season_id: UUID | None):
 def players(db: Session, season: str, include_inactive: bool = False):
     """Return the season squad ordered by position and shirt number, active only by default."""
     rows = db.execute(
-        select(Player, SquadMembership)
+        select(Player, SquadMembership, PlayerPhoto.player_id)
         .join(SquadMembership)
+        .outerjoin(PlayerPhoto, PlayerPhoto.player_id == Player.id)
         .where(SquadMembership.season_label == season)
         .where(True if include_inactive else Player.active.is_(True))
         .order_by(SquadMembership.position, SquadMembership.shirt_number, Player.id)
@@ -201,9 +203,11 @@ def players(db: Session, season: str, include_inactive: bool = False):
             display_name=p.display_name,
             active=p.active,
             photo_url=p.photo_url,
+            has_uploaded_photo=photo_id is not None,
             season=s.season_label,
             shirt_number=s.shirt_number,
             position=s.position,
+            alternate_positions=s.alternate_positions or [],
         )
-        for p, s in rows
+        for p, s, photo_id in rows
     ]

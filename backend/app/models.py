@@ -15,6 +15,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 
 class Base(DeclarativeBase):
@@ -232,6 +233,16 @@ class SquadMembership(Identity, Base):
     season_label: Mapped[str] = mapped_column(String(20))
     shirt_number: Mapped[int | None]
     position: Mapped[str] = mapped_column(String(30))
+    alternate_positions: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class PlayerPhoto(Base):
+    __tablename__ = "player_photos"
+    player_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), primary_key=True
+    )
+    content_type: Mapped[str] = mapped_column(String(100))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
 
 
 class ContactMessage(Identity, Base):

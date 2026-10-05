@@ -30,11 +30,16 @@ export const fr = {
   "squad.empty": "Aucun joueur à afficher pour le moment.",
   "squad.formIntro": "Informations du joueur · {season}",
   "squad.name": "Nom affiché",
-  "squad.position": "Poste",
+  "squad.position": "Poste principal",
+  "squad.alternatePositions": "Postes secondaires (facultatif)",
+  "squad.alternateShort": "Peut aussi jouer",
   "squad.number": "Numéro de maillot (facultatif)",
-  "squad.photo": "Lien de la photo (facultatif)",
+  "squad.photo": "Photo du joueur (facultatif)",
+  "squad.photoMode.none": "Silhouette par défaut",
+  "squad.photoMode.upload": "Importer depuis l’appareil",
+  "squad.photoMode.url": "Lien HTTPS",
   "squad.photoHelp":
-    "Utilisez un lien HTTPS public vers une image. Laissez vide pour afficher une silhouette.",
+    "Importez un PNG, JPEG ou WebP de moins de 2 Mo, utilisez un lien HTTPS public ou conservez la silhouette.",
   "squad.numberConflict":
     "Ce numéro est déjà attribué pour cette saison, y compris à un joueur inactif.",
   "squad.saveError":

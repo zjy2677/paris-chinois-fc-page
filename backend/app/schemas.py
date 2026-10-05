@@ -133,9 +133,11 @@ class PlayerResponse(BaseModel):
     id: UUID
     display_name: str
     photo_url: str | None
+    has_uploaded_photo: bool
     season: str
     shirt_number: int | None
     position: str
+    alternate_positions: list[str]
 
 
 class ContactRequest(BaseModel):
