@@ -3,7 +3,7 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { PlayerCard } from "./player-card";
 import { PlayerPortrait } from "./player-portrait";
-import { PlayerApiError, usePlayerProfile } from "./squad-api";
+import { PlayerApiError, playerPhotoUrl, usePlayerProfile } from "./squad-api";
 
 export function PlayerProfilePage({ id }: { id: string }) {
   const { t, c } = useI18n();
@@ -37,7 +37,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
             ) : (
               <PlayerPortrait
                 name={player.display_name}
-                photoUrl={player.photo_url}
+                photoUrl={playerPhotoUrl(player)}
                 number={null}
               />
             )}
@@ -83,6 +83,11 @@ export function PlayerProfilePage({ id }: { id: string }) {
                       <span className="font-semibold">{squad.season}</span>
                       <span className="text-muted-foreground">
                         {c(squad.position.slice(0, -1))}
+                        {(squad.alternate_positions ?? []).length > 0
+                          ? ` · ${t("squad.alternateShort")}: ${(squad.alternate_positions ?? [])
+                              .map((position) => c(position.slice(0, -1)))
+                              .join(" / ")}`
+                          : ""}
                         {squad.shirt_number !== null ? ` · #${squad.shirt_number}` : ""}
                       </span>
                     </li>

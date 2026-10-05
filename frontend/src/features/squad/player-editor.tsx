@@ -4,7 +4,13 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Player } from "@/types/football";
-import { PlayerApiError, savePlayer, SQUAD_SEASON } from "./squad-api";
+import {
+  PlayerApiError,
+  PlayerPhotoUploadError,
+  savePlayer,
+  SQUAD_SEASON,
+  uploadPlayerPhoto,
+} from "./squad-api";
 
 import { positions } from "./squad-api";
 
@@ -17,20 +23,37 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
   const [name, setName] = useState(player?.display_name ?? "");
   const [description, setDescription] = useState(player?.description ?? "");
   const [photo, setPhoto] = useState(player?.photo_url ?? "");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoMode, setPhotoMode] = useState<"none" | "upload" | "url">(
+    player?.has_uploaded_photo ? "upload" : player?.photo_url ? "url" : "none",
+  );
   const [number, setNumber] = useState(player?.shirt_number?.toString() ?? "");
   const [position, setPosition] = useState<Player["position"]>(player?.position ?? "Midfielders");
+  const [alternatePositions, setAlternatePositions] = useState<Player["alternate_positions"]>(
+    player?.alternate_positions ?? [],
+  );
+  const [persistedId, setPersistedId] = useState<string | undefined>(player?.id);
   const save = useMutation({
-    mutationFn: () =>
-      savePlayer(
+    mutationFn: async () => {
+      const saved = await savePlayer(
         {
           display_name: name.trim(),
           description: description.trim() || null,
-          photo_url: photo.trim() || null,
+          ...(photoMode === "url"
+            ? { photo_url: photo.trim() }
+            : photoMode === "none"
+              ? { photo_url: null }
+              : {}),
           shirt_number: number ? Number(number) : null,
           position,
+          alternate_positions: alternatePositions,
         },
-        player?.id,
-      ),
+        persistedId,
+      );
+      setPersistedId(saved.id);
+      if (photoMode === "upload" && photoFile) await uploadPlayerPhoto(saved.id, photoFile);
+      return saved;
+    },
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["players"] });
       onClose();
@@ -81,7 +104,12 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
                 <select
                   aria-label={t("squad.position")}
                   value={position}
-                  onChange={(e) => setPosition(e.target.value as Player["position"])}
+                  required
+                  onChange={(e) => {
+                    const next = e.target.value as Player["position"];
+                    setPosition(next);
+                    setAlternatePositions((current) => current.filter((item) => item !== next));
+                  }}
                   className={inputClass}
                 >
                   {positions.map((p) => (
@@ -104,19 +132,68 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
                 />
               </label>
             </div>
-            <label className="block text-sm">
-              {t("squad.photo")}
-              <input
-                type="url"
-                pattern="https://.*"
-                maxLength={2048}
-                value={photo}
-                onChange={(e) => setPhoto(e.target.value)}
-                placeholder="https://…"
-                aria-describedby="photo-help"
-                className={inputClass}
-              />
-            </label>
+            <fieldset className="space-y-3">
+              <legend className="text-sm">{t("squad.alternatePositions")}</legend>
+              <div className="flex flex-wrap gap-3">
+                {positions
+                  .filter((item) => item !== position)
+                  .map((item) => (
+                    <label key={item} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={alternatePositions.includes(item)}
+                        onChange={(event) =>
+                          setAlternatePositions((current) =>
+                            event.target.checked
+                              ? [...current, item]
+                              : current.filter((value) => value !== item),
+                          )
+                        }
+                      />
+                      {c(item)}
+                    </label>
+                  ))}
+              </div>
+            </fieldset>
+            <fieldset className="space-y-3">
+              <legend className="text-sm">{t("squad.photo")}</legend>
+              <div className="flex flex-wrap gap-4">
+                {(["none", "upload", "url"] as const).map((mode) => (
+                  <label key={mode} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="photo-mode"
+                      checked={photoMode === mode}
+                      onChange={() => setPhotoMode(mode)}
+                    />
+                    {t(`squad.photoMode.${mode}`)}
+                  </label>
+                ))}
+              </div>
+              {photoMode === "url" && (
+                <input
+                  required
+                  type="url"
+                  pattern="https://.*"
+                  maxLength={2048}
+                  value={photo}
+                  onChange={(e) => setPhoto(e.target.value)}
+                  placeholder="https://…"
+                  aria-describedby="photo-help"
+                  className={inputClass}
+                />
+              )}
+              {photoMode === "upload" && (
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required={!player?.has_uploaded_photo}
+                  onChange={(event) => setPhotoFile(event.target.files?.[0] ?? null)}
+                  aria-describedby="photo-help"
+                  className={inputClass}
+                />
+              )}
+            </fieldset>
             <p id="photo-help" className="text-sm text-muted-foreground">
               {t("squad.photoHelp")}
             </p>
@@ -126,7 +203,9 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
               {t(
                 save.error instanceof PlayerApiError && save.error.status === 409
                   ? "squad.numberConflict"
-                  : "squad.saveError",
+                  : save.error instanceof PlayerPhotoUploadError
+                    ? "squad.photoUploadError"
+                    : "squad.saveError",
               )}
             </p>
           )}
@@ -134,7 +213,15 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
             <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
               {t("squad.cancel")}
             </Button>
-            <Button type="submit" disabled={save.isPending || !name.trim()}>
+            <Button
+              type="submit"
+              disabled={
+                save.isPending ||
+                !name.trim() ||
+                (photoMode === "url" && !photo.trim()) ||
+                (photoMode === "upload" && !photoFile && !player?.has_uploaded_photo)
+              }
+            >
               {t(save.isPending ? "squad.saving" : "squad.save")}
             </Button>
           </div>

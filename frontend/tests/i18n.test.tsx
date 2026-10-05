@@ -25,11 +25,13 @@ const player: Player = {
   id: "test-player",
   display_name: "Test Player",
   photo_url: null,
+  has_uploaded_photo: false,
   description: null,
   shirt_number: 1,
   season: "2026/2027",
   active: true,
   position: "Goalkeepers",
+  alternate_positions: [],
 };
 
 const languages: Language[] = ["en", "fr", "zh"];

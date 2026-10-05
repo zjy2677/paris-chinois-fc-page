@@ -61,6 +61,12 @@ class VideoResponse(ORMResponse):
     published_at: datetime | None
 
 
+class VideoCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    url: str = Field(min_length=1, max_length=2048)
+    title: str | None = Field(None, max_length=200)
+
+
 class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
     description: str | None
@@ -127,9 +133,11 @@ class PlayerResponse(BaseModel):
     id: UUID
     display_name: str
     photo_url: str | None
+    has_uploaded_photo: bool
     season: str
     shirt_number: int | None
     position: str
+    alternate_positions: list[str]
 
 
 class ContactRequest(BaseModel):

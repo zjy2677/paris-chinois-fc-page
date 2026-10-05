@@ -10,8 +10,13 @@ def youtube_id(url: str) -> str:
         raise ValueError("Use an HTTPS YouTube URL")
     if parsed.hostname == "youtu.be":
         value = parsed.path.removeprefix("/")
-    elif parsed.hostname in {"youtube.com", "www.youtube.com"} and parsed.path == "/watch":
-        value = parse_qs(parsed.query).get("v", [""])[0]
+    elif parsed.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+        if parsed.path == "/watch":
+            value = parse_qs(parsed.query).get("v", [""])[0]
+        elif re.fullmatch(r"/(?:shorts|live|embed)/[A-Za-z0-9_-]{11}/?", parsed.path):
+            value = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+        else:
+            raise ValueError("Unsupported YouTube URL")
     else:
         raise ValueError("Unsupported YouTube URL")
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", value):
