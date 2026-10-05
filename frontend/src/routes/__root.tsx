@@ -10,6 +10,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -118,6 +119,13 @@ function RootShell({ children }: { children: ReactNode }) {
           <LocaleHead />
           {children}
         </I18nProvider>
+        <Analytics
+          beforeSend={(event) => {
+            // Account profile paths contain user IDs and must not enter analytics.
+            const url = new URL(event.url);
+            return /^\/myspace(?:\/|$)/.test(url.pathname) ? null : event;
+          }}
+        />
         <Scripts />
       </body>
     </html>
