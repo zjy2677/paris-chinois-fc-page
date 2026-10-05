@@ -14,6 +14,7 @@ from . import services
 from .auth.dependencies import require_role, throttle, trusted_origin
 from .config import get_settings
 from .database import get_db
+from .highlights import canonical_url
 from .models import (
     CompetitionSeason,
     ContactMessage,
@@ -21,6 +22,7 @@ from .models import (
     Match,
     MatchEvent,
     MatchReport,
+    MatchVideo,
     Player,
     Team,
     User,
@@ -34,6 +36,7 @@ from .schemas import (
     MatchRecordUpdate,
     PlayerResponse,
     StandingsResponse,
+    VideoCreate,
 )
 
 router = APIRouter(prefix="/api")
@@ -134,6 +137,62 @@ def match_detail(match_id: UUID, db: DB):
     if result is None:
         raise HTTPException(404, "Match not found")
     return result
+
+
+@router.post(
+    "/admin/matches/{match_id}/videos",
+    response_model=MatchDetail,
+    status_code=201,
+    dependencies=admin_mutation,
+)
+def add_match_video(
+    match_id: UUID,
+    body: VideoCreate,
+    db: DB,
+    user: Annotated[User, Depends(require_role("admin"))],
+):
+    if db.get(Match, match_id) is None:
+        raise HTTPException(404, "Match not found")
+    try:
+        video_url = canonical_url(body.url)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    video = MatchVideo(
+        match_id=match_id,
+        uploaded_by=user.id,
+        video_url=video_url,
+        title=body.title or None,
+        status="ready",
+        published_at=datetime.now(timezone.utc),
+    )
+    db.add(video)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "This YouTube video has already been added") from None
+    return services.match_detail(db, match_id)
+
+
+@router.delete(
+    "/admin/matches/{match_id}/videos/{video_id}",
+    response_model=MatchDetail,
+    dependencies=admin_mutation,
+)
+def delete_match_video(
+    match_id: UUID,
+    video_id: UUID,
+    db: DB,
+    _: Annotated[User, Depends(require_role("admin"))],
+):
+    video = db.scalar(
+        select(MatchVideo).where(MatchVideo.id == video_id, MatchVideo.match_id == match_id)
+    )
+    if video is None:
+        raise HTTPException(404, "Video not found in this match")
+    db.delete(video)
+    db.commit()
+    return services.match_detail(db, match_id)
 
 
 @router.put(

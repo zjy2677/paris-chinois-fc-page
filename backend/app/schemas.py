@@ -61,6 +61,12 @@ class VideoResponse(ORMResponse):
     published_at: datetime | None
 
 
+class VideoCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    url: str = Field(min_length=1, max_length=2048)
+    title: str | None = Field(None, max_length=200)
+
+
 class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
     description: str | None

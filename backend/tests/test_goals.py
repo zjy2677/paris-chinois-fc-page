@@ -3,15 +3,16 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
+
 from app.auth.dependencies import _attempts
 from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
 from app.models import CompetitionSeason, Match, Player, SquadMembership, Team, User
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 
@@ -299,3 +300,50 @@ def test_match_record_rejects_self_assist_and_accepts_valid_pair(goals_client, c
     assert response.status_code == 200, response.text
     assert len(response.json()["events"]) == count
     assert response.json()["description"] == "Saved"
+
+
+def test_admin_can_add_and_delete_youtube_highlight(goals_client):
+    client, _, matches, _, _, _ = goals_client
+    path = f"/api/admin/matches/{matches[0].id}/videos"
+    response = client.post(
+        path,
+        json={
+            "url": "https://www.youtube.com/shorts/FQheFBefpgI?feature=share",
+            "title": "Winning goals",
+        },
+        headers=ORIGIN,
+    )
+    assert response.status_code == 201, response.text
+    videos = response.json()["videos"]
+    assert len(videos) == 1
+    assert videos[0]["title"] == "Winning goals"
+    assert videos[0]["embed_url"].startswith("https://www.youtube-nocookie.com/embed/FQheFBefpgI")
+    assert (
+        client.post(
+            path,
+            json={"url": "https://youtu.be/FQheFBefpgI"},
+            headers=ORIGIN,
+        ).status_code
+        == 409
+    )
+    public = client.get(f"/api/matches/{matches[0].id}").json()
+    assert public["videos"][0]["id"] == videos[0]["id"]
+    deleted = client.delete(f"{path}/{videos[0]['id']}", headers=ORIGIN)
+    assert deleted.status_code == 200
+    assert deleted.json()["videos"] == []
+
+
+def test_match_video_writes_require_admin_and_valid_youtube_url(goals_client):
+    client, db, matches, _, _, user = goals_client
+    path = f"/api/admin/matches/{matches[0].id}/videos"
+    assert (
+        client.post(path, json={"url": "https://example.com/video"}, headers=ORIGIN).status_code
+        == 422
+    )
+    assert client.post(path, json={"url": "https://youtu.be/FQheFBefpgI"}).status_code == 403
+    user.role = "user"
+    db.commit()
+    assert (
+        client.post(path, json={"url": "https://youtu.be/FQheFBefpgI"}, headers=ORIGIN).status_code
+        == 403
+    )

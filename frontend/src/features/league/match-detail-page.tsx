@@ -9,6 +9,7 @@ import { MatchCard } from "./match-card";
 import { HighlightPlayer } from "./highlight-player";
 import { useAccount } from "@/features/auth/auth-api";
 import { MatchRecordEditor } from "./match-record-editor";
+import { HighlightEditor } from "./highlight-editor";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t } = useI18n();
@@ -112,6 +113,7 @@ export function MatchDetailPage({ id }: { id: string }) {
           <h2 id="match-highlights" className="font-display text-4xl font-bold uppercase">
             {t("match.highlights")}
           </h2>
+          {account.data?.role === "admin" && <HighlightEditor matchId={match.id} videos={videos} />}
           {videos.length > 0 ? (
             <div className="mt-6 space-y-8">
               {videos.map((video) => (

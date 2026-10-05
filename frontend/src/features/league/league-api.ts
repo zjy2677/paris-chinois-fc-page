@@ -116,7 +116,7 @@ export function useStandings() {
     },
   });
 }
-type Highlight = { id: string; title: string | null; embed_url: string | null };
+export type Highlight = { id: string; title: string | null; embed_url: string | null };
 export type MatchDetail = Match & {
   videos: Highlight[];
   description: string | null;
@@ -170,15 +170,42 @@ export function usePlayers() {
   });
 }
 
-async function adminRequest<T>(path: string, method: "POST" | "PUT", body: unknown): Promise<T> {
+async function adminRequest<T>(
+  path: string,
+  method: "DELETE" | "POST" | "PUT",
+  body?: unknown,
+): Promise<T> {
   const response = await fetch(`${base}/api/admin${path}`, {
     method,
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok) throw new ApiError(response.status);
   return response.json() as Promise<T>;
+}
+
+export function useAddMatchVideo(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { url: string; title: string | null }) =>
+      adminRequest<ApiMatchDetail>(`/matches/${encodeURIComponent(id)}/videos`, "POST", body).then(
+        toMatchDetail,
+      ),
+    onSuccess: (data) => queryClient.setQueryData(["league", "match", id], data),
+  });
+}
+
+export function useDeleteMatchVideo(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (videoId: string) =>
+      adminRequest<ApiMatchDetail>(
+        `/matches/${encodeURIComponent(id)}/videos/${encodeURIComponent(videoId)}`,
+        "DELETE",
+      ).then(toMatchDetail),
+    onSuccess: (data) => queryClient.setQueryData(["league", "match", id], data),
+  });
 }
 
 export function useSaveMatchRecord(id: string) {

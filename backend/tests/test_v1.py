@@ -5,15 +5,15 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from app.models import Match, StandingsSnapshot, SyncRun, Team
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select
-from sqlalchemy.orm import Session
-
 from etl.config import SourceConfig
 from etl.load import load
 from etl.parse_fixtures import parse_fixtures
 from etl.parse_standings import parse_standings
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import Session
+
+from app.models import Match, StandingsSnapshot, SyncRun, Team
 
 FIXTURES = Path(__file__).parents[2] / "etl/tests/fixtures"
 
@@ -214,7 +214,12 @@ def test_address_cleanup():
 
 @pytest.mark.parametrize(
     "url",
-    ["https://youtu.be/FQheFBefpgI?si=tracking", "https://www.youtube.com/watch?v=FQheFBefpgI"],
+    [
+        "https://youtu.be/FQheFBefpgI?si=tracking",
+        "https://www.youtube.com/watch?v=FQheFBefpgI",
+        "https://www.youtube.com/shorts/FQheFBefpgI",
+        "https://m.youtube.com/live/FQheFBefpgI?feature=share",
+    ],
 )
 def test_youtube_url_normalization(url):
     from app.highlights import canonical_url, embed_url
