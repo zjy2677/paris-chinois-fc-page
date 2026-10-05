@@ -157,6 +157,8 @@ def update_match_record(
     club = db.scalar(select(Team).where(Team.fla_team_id == 322))
     if club is None:
         raise HTTPException(409, "Club team is unavailable")
+    if club.id not in (match.home_team_id, match.away_team_id):
+        raise HTTPException(422, "Records can only be edited for club matches")
     club_score = match.home_score if match.home_team_id == club.id else match.away_score
     goal_count = sum(event.event_type == "goal" for event in body.events)
     if goal_count != (club_score or 0):
@@ -166,6 +168,11 @@ def update_match_record(
         )
     if any(event.event_type != "goal" and event.player_id is None for event in body.events):
         raise HTTPException(422, "Card events require a player")
+    if any(
+        event.player_id is not None and event.player_id == event.assist_player_id
+        for event in body.events
+    ):
+        raise HTTPException(422, "A scorer cannot assist their own goal")
     player_ids = {event.player_id for event in body.events if event.player_id} | {
         event.assist_player_id for event in body.events if event.assist_player_id
     }

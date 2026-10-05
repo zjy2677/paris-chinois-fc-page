@@ -277,3 +277,12 @@ is displayed as entered by the club.
 
 Run `alembic upgrade head` before deploying this change. Revision `b7c8d9e0f123` adds
 the nullable `players.description` column after `f0ad5f64a5bd`, retaining a single head.
+
+### Rolling back manual match records
+
+Migration `ef4050607080` cannot be downgraded while manual matches, source-free
+competition seasons, or teams without FLA IDs exist. It checks this before dropping
+records and refuses with an actionable error. Export and reconcile these rows and
+their dependent data explicitly before retrying. The downgrade does not silently
+delete manual matches or teams. As with other schema rollbacks, export match reports
+and events before dropping their tables.

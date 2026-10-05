@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n/i18n-provider";
 import { useCreateMatch } from "./league-api";
+import { scoreError } from "./match-score";
 
 export function CreateMatchForm() {
   const { t } = useI18n();
@@ -11,18 +12,22 @@ export function CreateMatchForm() {
   const [open, setOpen] = useState(false);
   const [opponent, setOpponent] = useState("");
   const [competition, setCompetition] = useState("");
+  const [season, setSeason] = useState("");
   const [date, setDate] = useState("");
   const [isHome, setIsHome] = useState(true);
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
   const [description, setDescription] = useState("");
   if (!open) return <Button onClick={() => setOpen(true)}>{t("match.create")}</Button>;
-  const submit = () =>
+  const validationError = scoreError(homeScore, awayScore);
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (validationError) return;
     create.mutate(
       {
         opponent_name: opponent,
         competition_name: competition || "Friendly",
-        season_label: "2026/2027",
+        season_label: season,
         kickoff_at: date ? new Date(date).toISOString() : null,
         is_home: isHome,
         home_score: homeScore === "" ? null : Number(homeScore),
@@ -31,8 +36,9 @@ export function CreateMatchForm() {
       },
       { onSuccess: (match) => window.location.assign(`/matches/${match.id}`) },
     );
+  };
   return (
-    <section className="border border-border bg-card p-5 md:p-8">
+    <form onSubmit={submit} className="border border-border bg-card p-5 md:p-8">
       <h2 className="font-display text-3xl font-bold uppercase">{t("match.create")}</h2>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <label className="text-sm">
@@ -51,6 +57,17 @@ export function CreateMatchForm() {
             placeholder="Friendly"
             value={competition}
             onChange={(e) => setCompetition(e.target.value)}
+          />
+        </label>
+        <label className="text-sm">
+          {t("match.season")}
+          <Input
+            className="mt-2"
+            required
+            pattern="[0-9]{4}/[0-9]{4}"
+            placeholder="YYYY/YYYY"
+            value={season}
+            onChange={(e) => setSeason(e.target.value)}
           />
         </label>
         <label className="text-sm">
@@ -78,6 +95,9 @@ export function CreateMatchForm() {
           <Input
             className="mt-2"
             min="0"
+            max="99"
+            step="1"
+            aria-describedby="create-score-help"
             type="number"
             value={homeScore}
             onChange={(e) => setHomeScore(e.target.value)}
@@ -88,12 +108,22 @@ export function CreateMatchForm() {
           <Input
             className="mt-2"
             min="0"
+            max="99"
+            step="1"
+            aria-describedby="create-score-help"
             type="number"
             value={awayScore}
             onChange={(e) => setAwayScore(e.target.value)}
           />
         </label>
       </div>
+      <p
+        id="create-score-help"
+        className="mt-3 text-sm text-muted-foreground"
+        role={validationError ? "alert" : undefined}
+      >
+        {t(validationError ?? "match.scorePair")}
+      </p>
       <label className="mt-4 block text-sm">
         {t("match.description")}
         <Textarea
@@ -104,13 +134,13 @@ export function CreateMatchForm() {
       </label>
       {create.isError && <p className="mt-4 text-sm text-destructive">{t("match.saveError")}</p>}
       <div className="mt-6 flex gap-3">
-        <Button disabled={!opponent.trim() || create.isPending} onClick={submit}>
+        <Button type="submit" disabled={!opponent.trim() || !!validationError || create.isPending}>
           {create.isPending ? t("auth.pending") : t("match.create")}
         </Button>
-        <Button variant="ghost" onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
           {t("blog.cancelEdit")}
         </Button>
       </div>
-    </section>
+    </form>
   );
 }

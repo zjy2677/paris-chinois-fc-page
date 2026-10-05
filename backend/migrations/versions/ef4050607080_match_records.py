@@ -66,6 +66,25 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The old schema cannot represent manual data. Refuse before dropping records;
+    # an operator must export and explicitly reconcile it before retrying.
+    incompatible = (
+        op.get_bind()
+        .execute(
+            sa.text("""
+        SELECT EXISTS (SELECT 1 FROM matches WHERE source_type = 'manual')
+            OR EXISTS (SELECT 1 FROM competition_seasons
+                       WHERE fla_championship_id IS NULL AND fla_cup_id IS NULL)
+            OR EXISTS (SELECT 1 FROM teams WHERE fla_team_id IS NULL)
+    """)
+        )
+        .scalar_one()
+    )
+    if incompatible:
+        raise RuntimeError(
+            "Cannot downgrade match records while manual matches, competitions, or teams exist. "
+            "Export and reconcile manual data before retrying; no data has been deleted."
+        )
     op.drop_table("match_events")
     op.drop_table("match_reports")
     op.drop_constraint("match_source_type", "matches", type_="check")

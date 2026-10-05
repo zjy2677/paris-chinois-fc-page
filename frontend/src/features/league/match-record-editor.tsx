@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { MatchEvent } from "@/types/football";
 import { useI18n } from "@/i18n/i18n-provider";
 import { usePlayers, useSaveMatchRecord, type MatchDetail } from "./league-api";
+
+import { isValidScore, scoreError } from "./match-score";
 
 type EditableEvent = MatchEvent & { key: string };
 const unknownGoal = (): EditableEvent => ({
@@ -16,6 +18,7 @@ const unknownGoal = (): EditableEvent => ({
   minute: null,
 });
 const reconcileGoals = (events: EditableEvent[], target: number) => {
+  if (!Number.isInteger(target) || target < 0 || target > 99) return events;
   const goals = events.filter((event) => event.event_type === "goal");
   if (goals.length < target) {
     return [...events, ...Array.from({ length: target - goals.length }, unknownGoal)];
@@ -47,7 +50,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
   const clubScore = Number(clubIsHome ? homeScore || 0 : awayScore || 0);
   const goalCount = events.filter((event) => event.event_type === "goal").length;
 
-  useEffect(() => {
+  const startEditing = () => {
     setDescription(match.description ?? "");
     setHomeScore(match.score?.[0]?.toString() ?? "");
     setAwayScore(match.score?.[1]?.toString() ?? "");
@@ -57,7 +60,8 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
     }));
     const score = match.score?.[clubIsHome ? 0 : 1] ?? 0;
     setEvents(reconcileGoals(initial, score));
-  }, [clubIsHome, match]);
+    setEditing(true);
+  };
 
   const addCard = () => {
     const player = players.data?.[0];
@@ -81,7 +85,8 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
     if (side === "home") setHomeScore(value);
     else setAwayScore(value);
     const isClubScore = (side === "home") === clubIsHome;
-    if (isClubScore) setEvents((current) => reconcileGoals(current, Number(value || 0)));
+    if (isClubScore && isValidScore(value))
+      setEvents((current) => reconcileGoals(current, Number(value || 0)));
   };
   const removeEvent = (event: EditableEvent) => {
     setEvents((current) => {
@@ -97,7 +102,9 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
     });
   };
 
+  const validationError = scoreError(homeScore, awayScore);
   const submit = () => {
+    if (validationError || goalCount !== clubScore) return;
     const score = (value: string) => (value === "" ? null : Number(value));
     save.mutate(
       {
@@ -117,7 +124,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
 
   if (!editing) {
     return (
-      <Button className="mt-8" onClick={() => setEditing(true)}>
+      <Button className="mt-8" onClick={startEditing}>
         {t("match.editRecord")}
       </Button>
     );
@@ -136,6 +143,8 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
             <Input
               className="mt-2 w-24"
               min="0"
+              max="99"
+              step="1"
               type="number"
               value={homeScore}
               onChange={(e) => changeScore("home", e.target.value)}
@@ -147,6 +156,8 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
             <Input
               className="mt-2 w-24"
               min="0"
+              max="99"
+              step="1"
               type="number"
               value={awayScore}
               onChange={(e) => changeScore("away", e.target.value)}
@@ -185,7 +196,9 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
               onChange={(e) =>
                 update(event.key, {
                   player_id: e.target.value || null,
-                  ...(e.target.value ? {} : { assist_player_id: null }),
+                  ...(!e.target.value || e.target.value === event.assist_player_id
+                    ? { assist_player_id: null }
+                    : {}),
                 })
               }
             >
@@ -217,6 +230,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
             <Input
               aria-label={t("match.minute")}
               min="0"
+              step="1"
               max="130"
               placeholder={t("match.minute")}
               type="number"
@@ -242,7 +256,12 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
           {t("match.addCard")}
         </Button>
       </div>
-      {goalCount !== clubScore && (
+      {validationError && (
+        <p className="mt-4 text-sm text-destructive" role="alert">
+          {t(validationError)}
+        </p>
+      )}
+      {!validationError && goalCount !== clubScore && (
         <p className="mt-4 text-sm text-destructive" role="alert">
           {t("match.goalCountMismatch", { score: clubScore, count: goalCount })}
         </p>
@@ -262,7 +281,10 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
         </p>
       )}
       <div className="mt-6 flex gap-3">
-        <Button onClick={submit} disabled={save.isPending || goalCount !== clubScore}>
+        <Button
+          onClick={submit}
+          disabled={save.isPending || !!validationError || goalCount !== clubScore}
+        >
           {save.isPending ? t("auth.pending") : t("blog.saveChanges")}
         </Button>
         <Button variant="ghost" onClick={() => setEditing(false)}>
