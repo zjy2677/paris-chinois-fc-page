@@ -73,6 +73,9 @@ export const fr = {
   "media.uploading": "Envoi…",
   "media.uploadError": "Impossible d’envoyer les photos. Vérifiez leur format et leur taille.",
   "media.pendingModeration": "Votre message et sa photo apparaîtront après modération.",
+  "media.uploadRetry":
+    "Le message a été enregistré, mais l’envoi de la photo a échoué. Publiez à nouveau pour réessayer la photo.",
+  "media.retryUpload": "Réessayer la photo",
 
   guestbook: "Livre d'or",
   "guestbook.eyebrow": "La communauté",
@@ -93,6 +96,10 @@ export const fr = {
   "guestbook.loadError": "Le mur est indisponible. Réessayez.",
   "guestbook.empty": "Soyez la première personne à laisser un message.",
   "guestbook.hidden": "Masqué",
+  "guestbook.pending": "En attente de validation",
+  "guestbook.approve": "Approuver",
+  "guestbook.reject": "Refuser",
+  "guestbook.pendingMessages": "Messages en attente de validation",
   "guestbook.hide": "Masquer",
   "guestbook.restore": "Restaurer",
   "guestbook.hiddenMessages": "Messages masqués",

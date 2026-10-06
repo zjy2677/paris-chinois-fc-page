@@ -4,7 +4,7 @@ export type GuestbookMessage = {
   id: string;
   nickname: string;
   body: string;
-  status: "visible" | "hidden";
+  status: "visible" | "pending" | "hidden";
   created_at: string;
   photo: import("@/features/gallery/media-api").Photo | null;
 };

@@ -10,6 +10,12 @@ depends_on = None
 
 
 def upgrade():
+    op.drop_constraint("guestbook_message_status", "guestbook_messages", type_="check")
+    op.create_check_constraint(
+        "guestbook_message_status",
+        "guestbook_messages",
+        "status IN ('visible','pending','hidden')",
+    )
     op.create_table(
         "photo_albums",
         sa.Column("title", sa.String(180), nullable=False),
@@ -79,3 +85,10 @@ def downgrade():
     op.drop_index("ix_media_assets_uploaded_by", table_name="media_assets")
     op.drop_table("media_assets")
     op.drop_table("photo_albums")
+    op.execute("UPDATE guestbook_messages SET status = 'hidden' WHERE status = 'pending'")
+    op.drop_constraint("guestbook_message_status", "guestbook_messages", type_="check")
+    op.create_check_constraint(
+        "guestbook_message_status",
+        "guestbook_messages",
+        "status IN ('visible','hidden')",
+    )

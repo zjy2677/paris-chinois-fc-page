@@ -8,11 +8,13 @@ export function MessageCard({
   message,
   index,
   adminAction,
+  secondaryAdminAction,
   adminPending = false,
 }: {
   message: GuestbookMessage;
   index: number;
   adminAction?: () => void;
+  secondaryAdminAction?: () => void;
   adminPending?: boolean;
 }) {
   const { t, formatDate } = useI18n();
@@ -22,8 +24,10 @@ export function MessageCard({
     >
       <div className="flex items-start justify-between gap-4">
         <h2 className="font-display text-2xl font-bold uppercase">{message.nickname}</h2>
-        {message.status === "hidden" ? (
-          <span className="text-xs uppercase text-muted-foreground">{t("guestbook.hidden")}</span>
+        {message.status !== "visible" ? (
+          <span className="text-xs uppercase text-muted-foreground">
+            {t(message.status === "pending" ? "guestbook.pending" : "guestbook.hidden")}
+          </span>
         ) : null}
       </div>
       <p className="mt-5 whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">
@@ -42,14 +46,30 @@ export function MessageCard({
           {formatDate(message.created_at, { day: "numeric", month: "long", year: "numeric" })}
         </time>
         {adminAction ? (
-          <button
-            type="button"
-            disabled={adminPending}
-            onClick={adminAction}
-            className="text-xs text-copper underline"
-          >
-            {message.status === "hidden" ? t("guestbook.restore") : t("guestbook.hide")}
-          </button>
+          <div className="flex gap-3">
+            {secondaryAdminAction ? (
+              <button
+                type="button"
+                disabled={adminPending}
+                onClick={secondaryAdminAction}
+                className="text-xs text-muted-foreground underline"
+              >
+                {t("guestbook.reject")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={adminPending}
+              onClick={adminAction}
+              className="text-xs text-copper underline"
+            >
+              {message.status === "pending"
+                ? t("guestbook.approve")
+                : message.status === "hidden"
+                  ? t("guestbook.restore")
+                  : t("guestbook.hide")}
+            </button>
+          </div>
         ) : null}
       </div>
     </article>

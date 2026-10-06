@@ -70,6 +70,9 @@ export const en = {
   "media.uploading": "Uploading…",
   "media.uploadError": "The photos could not be uploaded. Check their format and size.",
   "media.pendingModeration": "Your message and photo will appear after review.",
+  "media.uploadRetry":
+    "The message was saved, but the photo upload failed. Try posting again to retry the photo.",
+  "media.retryUpload": "Retry photo upload",
 
   guestbook: "Guestbook",
   "guestbook.eyebrow": "From the community",
@@ -90,6 +93,10 @@ export const en = {
   "guestbook.loadError": "The message wall is unavailable. Please try again.",
   "guestbook.empty": "Be the first to leave a message.",
   "guestbook.hidden": "Hidden",
+  "guestbook.pending": "Awaiting review",
+  "guestbook.approve": "Approve",
+  "guestbook.reject": "Reject",
+  "guestbook.pendingMessages": "Messages awaiting review",
   "guestbook.hide": "Hide",
   "guestbook.restore": "Restore",
   "guestbook.hiddenMessages": "Hidden messages",

@@ -3,15 +3,16 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from app import blog, guestbook
-from app.auth.dependencies import _attempts, current_user
-from app.config import get_settings
-from app.database import get_db
-from app.models import BlogPost, GuestbookMessage, User
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+
+from app import blog, guestbook, media
+from app.auth.dependencies import _attempts, current_user
+from app.config import get_settings
+from app.database import get_db
+from app.models import BlogPost, GuestbookMessage, User
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 CONTENT = {"title": "A club story", "body": "Our team played a great match together."}
@@ -31,6 +32,7 @@ def community(monkeypatch):
     app = FastAPI()
     app.include_router(blog.router)
     app.include_router(guestbook.router)
+    app.include_router(media.router)
     with engine.connect() as connection:
         transaction = connection.begin()
         db = Session(bind=connection, join_transaction_mode="create_savepoint")
@@ -126,3 +128,57 @@ def test_cookie_removal_cannot_bypass_posting_cooldown(community, monkeypatch):
     clock[0] += 30
     assert client.post("/api/guestbook/messages", json=body, headers=ORIGIN).status_code == 201
     assert len(db.scalars(select(GuestbookMessage)).all()) == 2
+
+
+def test_guestbook_photo_stays_pending_until_admin_approval(community):
+    client, _, _ = community
+    created = client.post(
+        "/api/guestbook/messages",
+        json={"nickname": "Supporter", "body": "A photo from the match", "has_photo": True},
+        headers=ORIGIN,
+    )
+    assert created.status_code == 201
+    assert created.json()["status"] == "pending"
+    assert "Path=/api" in created.headers["set-cookie"]
+    message_id = created.json()["id"]
+    assert client.get("/api/guestbook/messages").json() == []
+
+    uploaded = client.post(
+        f"/api/media/guestbook/{message_id}/photo?alt=Match%20photo",
+        content=b"\x89PNG\r\n\x1a\nimage-data",
+        headers=ORIGIN | {"Content-Type": "image/png"},
+    )
+    assert uploaded.status_code == 201
+    photo_id = uploaded.json()["id"]
+    assert client.get(f"/api/media/photos/{photo_id}/content").status_code == 404
+
+    moderation = client.get("/api/guestbook/moderation")
+    assert moderation.status_code == 200
+    pending = next(item for item in moderation.json() if item["id"] == message_id)
+    assert pending["status"] == "pending"
+    assert pending["photo"]["url"] == f"/api/media/photos/{photo_id}/preview"
+    preview = client.get(pending["photo"]["url"])
+    assert preview.status_code == 200
+    assert preview.headers["cache-control"] == "no-store"
+
+    approved = client.post(f"/api/guestbook/messages/{message_id}/restore", headers=ORIGIN)
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "visible"
+    public = client.get("/api/guestbook/messages").json()
+    assert public[0]["photo"]["url"] == f"/api/media/photos/{photo_id}/content"
+    assert client.get(public[0]["photo"]["url"]).status_code == 200
+
+
+def test_visible_guestbook_message_rejects_late_photo_upload(community):
+    client, _, _ = community
+    created = client.post(
+        "/api/guestbook/messages",
+        json={"nickname": "Supporter", "body": "Text only"},
+        headers=ORIGIN,
+    )
+    response = client.post(
+        f"/api/media/guestbook/{created.json()['id']}/photo",
+        content=b"\x89PNG\r\n\x1a\nimage-data",
+        headers=ORIGIN | {"Content-Type": "image/png"},
+    )
+    assert response.status_code == 409

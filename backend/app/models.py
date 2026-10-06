@@ -340,7 +340,9 @@ class AlbumPhoto(Base):
 class GuestbookMessage(Identity, Base):
     __tablename__ = "guestbook_messages"
     __table_args__ = (
-        CheckConstraint("status IN ('visible','hidden')", name="guestbook_message_status"),
+        CheckConstraint(
+            "status IN ('visible','pending','hidden')", name="guestbook_message_status"
+        ),
         Index("ix_guestbook_status_created", "status", "created_at"),
     )
 

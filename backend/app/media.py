@@ -266,15 +266,31 @@ async def upload_guestbook_photo(
     token = request.cookies.get(COOKIE_NAME)
     if message is None or token is None or message.visitor_hash != token_hash(token):
         raise HTTPException(404, "Message not found")
+    if message.status != "pending":
+        raise HTTPException(409, "Only pending messages accept a photo")
     exists = db.scalar(select(MediaAsset.id).where(MediaAsset.guestbook_message_id == message_id))
     if exists:
         raise HTTPException(409, "A message can have one photo")
     asset = await new_asset(
         request, db, None, caption, alt, status="pending", guestbook_message_id=message_id
     )
-    message.status = "hidden"
     db.commit()
     return photo_response(asset)
+
+
+@router.get(
+    "/photos/{photo_id}/preview",
+    dependencies=[Depends(require_role("admin"))],
+)
+def preview_photo(photo_id: UUID, db: DB):
+    asset = db.get(MediaAsset, photo_id)
+    if asset is None:
+        raise HTTPException(404, "Photo not found")
+    return Response(
+        content=asset.data,
+        media_type=asset.content_type,
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @router.get("/photos/{photo_id}/content")
