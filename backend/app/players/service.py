@@ -51,8 +51,9 @@ def goal_records():
 def leaderboard_entries(db: Session, season: str, records, player_field) -> list[LeaderboardEntry]:
     """Aggregate one ranked list from the club events entered in the match editor."""
     total = func.count().label("total")
+    has_photo = select(PlayerPhoto.player_id).where(PlayerPhoto.player_id == Player.id).exists()
     rows = db.execute(
-        select(Player, SquadMembership.shirt_number, total)
+        select(Player, SquadMembership.shirt_number, total, has_photo)
         .join(records, player_field == Player.id)
         .join(Match, Match.id == records.c.match_id)
         .join(CompetitionSeason, CompetitionSeason.id == Match.competition_season_id)
@@ -70,7 +71,7 @@ def leaderboard_entries(db: Session, season: str, records, player_field) -> list
     rank = 0
     previous_total = None
     entries = []
-    for position, (player, shirt_number, count) in enumerate(rows, start=1):
+    for position, (player, shirt_number, count, has_uploaded_photo) in enumerate(rows, start=1):
         if count != previous_total:
             rank = position
             previous_total = count
@@ -81,7 +82,7 @@ def leaderboard_entries(db: Session, season: str, records, player_field) -> list
                 display_name=player.display_name,
                 chinese_name=player.chinese_name,
                 photo_url=player.photo_url,
-                has_uploaded_photo=db.get(PlayerPhoto, player.id) is not None,
+                has_uploaded_photo=has_uploaded_photo,
                 shirt_number=shirt_number,
                 total=count,
             )
