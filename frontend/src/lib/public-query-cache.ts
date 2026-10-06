@@ -23,6 +23,16 @@ function isPublicQuery(queryKey: QueryKey) {
 export function restorePublicQueryCache(queryClient: QueryClient) {
   if (typeof window === "undefined") return;
 
+  // Keep inactive public data for as long as its persisted fallback is usable.
+  for (const key of [
+    ["league", "matches"],
+    ["league", "standings"],
+    ["league", "match"],
+    ["players", "leaderboards"],
+  ]) {
+    queryClient.setQueryDefaults(key, { gcTime: MAX_AGE });
+  }
+
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (!saved) return;
@@ -41,7 +51,11 @@ export function restorePublicQueryCache(queryClient: QueryClient) {
       queryClient.setQueryData(query.queryKey, query.data, { updatedAt: query.updatedAt });
     }
   } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Disabled storage must not prevent the router from starting.
+    }
   }
 }
 
