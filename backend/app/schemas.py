@@ -48,8 +48,10 @@ class MatchEventResponse(BaseModel):
     event_type: str
     player_id: UUID | None
     player_name: str | None
+    player_chinese_name: str | None
     assist_player_id: UUID | None
     assist_player_name: str | None
+    assist_player_chinese_name: str | None
     minute: int | None
     sequence: int
 
@@ -140,6 +142,7 @@ class PlayerResponse(BaseModel):
     active: bool
     id: UUID
     display_name: str
+    chinese_name: str | None
     photo_url: str | None
     has_uploaded_photo: bool
     season: str

@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/i18n/i18n-provider";
+import { localizedPlayerName } from "@/lib/player-name";
 import { Button } from "@/components/ui/button";
 import { PlayerCard } from "./player-card";
 import { PlayerPortrait } from "./player-portrait";
 import { PlayerApiError, playerPhotoUrl, usePlayerProfile } from "./squad-api";
 
 export function PlayerProfilePage({ id }: { id: string }) {
-  const { t, c } = useI18n();
+  const { t, c, language } = useI18n();
   const query = usePlayerProfile(id);
   const missing = query.error instanceof PlayerApiError && [404, 422].includes(query.error.status);
   const player = query.data;
@@ -36,7 +37,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
               <PlayerCard player={{ ...player, ...latest }} showProfileLink={false} />
             ) : (
               <PlayerPortrait
-                name={player.display_name}
+                name={localizedPlayerName(player.display_name, player.chinese_name, language)}
                 photoUrl={playerPhotoUrl(player)}
                 number={null}
               />
@@ -45,7 +46,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
           <div className="min-w-0">
             <p className="eyebrow text-copper">{t("profile.label")}</p>
             <h1 className="mt-3 break-words font-display text-5xl font-bold uppercase leading-tight md:text-7xl">
-              {player.display_name}
+              {localizedPlayerName(player.display_name, player.chinese_name, language)}
             </h1>
             {!player.active && <p className="mt-3 text-muted-foreground">{t("squad.inactive")}</p>}
             <section className="mt-8" aria-label={t("profile.description")}>

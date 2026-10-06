@@ -19,10 +19,16 @@ export class PlayerPhotoUploadError extends PlayerApiError {}
 export type PlayerInput = Pick<
   Player,
   "display_name" | "shirt_number" | "position" | "alternate_positions" | "description"
-> & { photo_url?: string | null };
+> & { chinese_name?: string; photo_url?: string | null };
 export type PlayerProfile = Pick<
   Player,
-  "id" | "display_name" | "photo_url" | "has_uploaded_photo" | "description" | "active"
+  | "id"
+  | "display_name"
+  | "chinese_name"
+  | "photo_url"
+  | "has_uploaded_photo"
+  | "description"
+  | "active"
 > & {
   squads: Pick<Player, "season" | "position" | "alternate_positions" | "shirt_number">[];
   goals: number;
@@ -74,6 +80,8 @@ export function useSquad(adminId?: string) {
 }
 /** Create a player in the current season, or update that season membership and player details by ID. */
 export function savePlayer(body: PlayerInput, id?: string) {
+  // Only legacy edits may omit the Chinese name; creation always requires it.
+  if (!id && !body.chinese_name?.trim()) return Promise.reject(new PlayerApiError(422));
   return id
     ? playerRequest<Player>(
         `/players/${id}?season=${encodeURIComponent(SQUAD_SEASON)}`,

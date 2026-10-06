@@ -140,8 +140,10 @@ def match_detail(db: Session, match_id: UUID):
                 "event_type": event.event_type,
                 "player_id": event.player_id,
                 "player_name": player.display_name if player else None,
+                "player_chinese_name": player.chinese_name if player else None,
                 "assist_player_id": event.assist_player_id,
                 "assist_player_name": assist.display_name if assist else None,
+                "assist_player_chinese_name": assist.chinese_name if assist else None,
                 "minute": event.minute,
                 "sequence": event.sequence,
             }
@@ -208,6 +210,7 @@ def players(db: Session, season: str, include_inactive: bool = False):
             description=p.description,
             id=p.id,
             display_name=p.display_name,
+            chinese_name=p.chinese_name,
             active=p.active,
             photo_url=p.photo_url,
             has_uploaded_photo=photo_id is not None,

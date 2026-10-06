@@ -25,6 +25,7 @@ def response(
         description=player.description,
         id=player.id,
         display_name=player.display_name,
+        chinese_name=player.chinese_name,
         photo_url=player.photo_url,
         has_uploaded_photo=has_uploaded_photo,
         active=player.active,
@@ -51,6 +52,7 @@ def create(db: Session, body: PlayerCreate):
     player = Player(
         description=body.description,
         display_name=body.display_name,
+        chinese_name=body.chinese_name,
         photo_url=str(body.photo_url) if body.photo_url else None,
         active=body.active,
     )
@@ -84,6 +86,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
     values = {
         "description": player.description,
         "display_name": player.display_name,
+        "chinese_name": player.chinese_name,
         "photo_url": player.photo_url,
         "active": player.active,
         "shirt_number": squad.shirt_number,
@@ -96,6 +99,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
     except ValidationError:
         raise HTTPException(422, "Invalid player details or photo URL") from None
     player.display_name, player.active = validated.display_name, validated.active
+    player.chinese_name = validated.chinese_name
     player.photo_url = str(validated.photo_url) if validated.photo_url else None
     if "photo_url" in changes:
         uploaded = db.get(PlayerPhoto, player_id)
@@ -140,6 +144,7 @@ def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
     return PlayerProfileResponse(
         id=player.id,
         display_name=player.display_name,
+        chinese_name=player.chinese_name,
         photo_url=player.photo_url,
         has_uploaded_photo=db.get(PlayerPhoto, player_id) is not None,
         description=player.description,
