@@ -63,34 +63,41 @@ export function MatchDetailPage({ id }: { id: string }) {
             </h2>
             <ul className="mt-5 divide-y divide-border border-y border-border">
               {match.events.map((event) => (
-                <li key={event.id} className="flex items-start gap-3 py-3 sm:items-center sm:gap-4">
-                  <span className="w-12 shrink-0 tabular-nums text-muted-foreground">
+                <li
+                  key={event.id}
+                  className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-4 sm:grid-cols-[3rem_7.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4"
+                >
+                  <span className="tabular-nums text-muted-foreground">
                     {event.minute === null ? "—" : `${event.minute}'`}
                   </span>
-                  <span className="w-6 shrink-0 text-center" aria-hidden="true">
-                    {event.event_type === "goal"
-                      ? "⚽"
-                      : event.event_type === "yellow_card"
-                        ? "🟨"
-                        : "🟥"}
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="font-semibold">
-                      {event.event_type !== "goal" && (
-                        <span
-                          className={
-                            event.event_type === "yellow_card"
-                              ? "mr-2 text-yellow-500"
-                              : "mr-2 text-red-500"
-                          }
-                        >
-                          {t(
-                            event.event_type === "yellow_card"
-                              ? "match.yellowCard"
-                              : "match.redCard",
-                          )}
-                        </span>
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <span aria-hidden="true">
+                      {event.event_type === "goal"
+                        ? "⚽"
+                        : event.event_type === "yellow_card"
+                          ? "🟨"
+                          : "🟥"}
+                    </span>
+                    <span
+                      className={
+                        event.event_type === "goal"
+                          ? "text-foreground"
+                          : event.event_type === "yellow_card"
+                            ? "text-yellow-500"
+                            : "text-red-500"
+                      }
+                    >
+                      {t(
+                        event.event_type === "goal"
+                          ? "match.goal"
+                          : event.event_type === "yellow_card"
+                            ? "match.yellowCard"
+                            : "match.redCard",
                       )}
+                    </span>
+                  </span>
+                  <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 sm:col-start-auto">
+                    <span className="font-semibold">
                       {localizedPlayerName(
                         event.player_name ?? t("match.unknownScorer"),
                         event.player_chinese_name,
