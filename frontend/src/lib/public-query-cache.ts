@@ -10,12 +10,13 @@ type StoredQuery = {
   updatedAt: number;
 };
 
-function isPublicLeagueQuery(queryKey: QueryKey) {
+function isPublicQuery(queryKey: QueryKey) {
   return (
-    queryKey[0] === "league" &&
-    (queryKey[1] === "matches" ||
-      queryKey[1] === "standings" ||
-      (queryKey[1] === "match" && typeof queryKey[2] === "string"))
+    (queryKey[0] === "league" &&
+      (queryKey[1] === "matches" ||
+        queryKey[1] === "standings" ||
+        (queryKey[1] === "match" && typeof queryKey[2] === "string"))) ||
+    (queryKey[0] === "players" && queryKey[1] === "leaderboards")
   );
 }
 
@@ -31,7 +32,7 @@ export function restorePublicQueryCache(queryClient: QueryClient) {
     for (const query of queries) {
       if (
         !Array.isArray(query.queryKey) ||
-        !isPublicLeagueQuery(query.queryKey) ||
+        !isPublicQuery(query.queryKey) ||
         typeof query.updatedAt !== "number" ||
         now - query.updatedAt > MAX_AGE
       ) {
@@ -49,7 +50,7 @@ export function persistPublicQueries(queryClient: QueryClient) {
 
   return queryClient.getQueryCache().subscribe((event) => {
     if (event.type !== "updated" || event.query.state.status !== "success") return;
-    if (!isPublicLeagueQuery(event.query.queryKey)) return;
+    if (!isPublicQuery(event.query.queryKey)) return;
 
     try {
       const queries = queryClient
@@ -57,7 +58,7 @@ export function persistPublicQueries(queryClient: QueryClient) {
         .getAll()
         .filter(
           (query) =>
-            isPublicLeagueQuery(query.queryKey) &&
+            isPublicQuery(query.queryKey) &&
             query.state.status === "success" &&
             Date.now() - query.state.dataUpdatedAt <= MAX_AGE,
         )

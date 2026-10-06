@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -7,7 +8,15 @@ from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
-from app.models import Player, SquadMembership, User
+from app.models import (
+    CompetitionSeason,
+    Match,
+    MatchEvent,
+    Player,
+    SquadMembership,
+    Team,
+    User,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -202,6 +211,119 @@ def test_description_lifecycle_and_public_profile(player_client):
     assert "normalized_email" not in profile.json()
     assert client.get(f"/api/players/{uuid4()}").status_code == 404
     assert client.get("/api/players/not-a-uuid").status_code == 422
+
+
+def test_leaderboards_and_profiles_use_recorded_match_events(player_client):
+    client, db, _ = player_client
+    players = [
+        Player(display_name="Alpha", chinese_name="甲"),
+        Player(display_name="Bravo", chinese_name="乙"),
+        Player(display_name="Charlie", chinese_name="丙", active=False),
+    ]
+    db.add_all(players)
+    db.flush()
+    db.add_all(
+        SquadMembership(
+            player_id=player.id,
+            season_label="2026/2027",
+            shirt_number=number,
+            position="Forwards",
+        )
+        for player, number in zip(players, (9, 10, 11), strict=True)
+    )
+    club = Team(fla_team_id=322, name="Paris Chinois", short_name="PCFC")
+    opponent = Team(fla_team_id=None, name="Opponent", short_name=None)
+    competition = CompetitionSeason(
+        fla_championship_id=1,
+        fla_cup_id=None,
+        fla_season_id=1,
+        competition_name="League",
+        division="A",
+        season_label="2026/2027",
+    )
+    db.add_all([club, opponent, competition])
+    db.flush()
+    match = Match(
+        competition_season_id=competition.id,
+        source_key="leaderboard-test",
+        home_team_id=club.id,
+        away_team_id=opponent.id,
+        venue_id=None,
+        matchday=1,
+        leg="",
+        kickoff_at=datetime.now(timezone.utc),
+        status="final",
+        home_score=4,
+        away_score=0,
+        source_url="",
+        last_synced_at=datetime.now(timezone.utc),
+        source_type="manual",
+    )
+    db.add(match)
+    db.flush()
+    db.add_all(
+        [
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[0].id,
+                assist_player_id=players[1].id,
+                minute=10,
+                sequence=0,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[0].id,
+                assist_player_id=players[1].id,
+                minute=20,
+                sequence=1,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[1].id,
+                assist_player_id=players[0].id,
+                minute=30,
+                sequence=2,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[2].id,
+                assist_player_id=None,
+                minute=40,
+                sequence=3,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="yellow_card",
+                player_id=players[0].id,
+                assist_player_id=None,
+                minute=50,
+                sequence=4,
+            ),
+        ]
+    )
+    db.commit()
+
+    response = client.get("/api/player-leaderboards?season=2026/2027")
+    assert response.status_code == 200
+    data = response.json()
+    assert [(row["display_name"], row["rank"], row["total"]) for row in data["scorers"]] == [
+        ("Alpha", 1, 2),
+        ("Bravo", 2, 1),
+        ("Charlie", 2, 1),
+    ]
+    assert [(row["display_name"], row["rank"], row["total"]) for row in data["assists"]] == [
+        ("Bravo", 1, 2),
+        ("Alpha", 2, 1),
+    ]
+    assert data["scorers"][2]["shirt_number"] == 11
+    profile = client.get(f"/api/players/{players[0].id}").json()
+    assert profile["goals"] == 2
+    assert profile["assists"] == 1
+    assert client.get("/api/player-leaderboards?season=invalid").status_code == 422
 
 
 def test_alternate_positions_and_uploaded_photo(player_client):

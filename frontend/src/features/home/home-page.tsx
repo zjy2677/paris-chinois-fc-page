@@ -5,10 +5,20 @@ import { Hero } from "./hero";
 import { MatchList } from "@/features/league/match-list";
 import { LeagueTable } from "@/features/league/league-table";
 import { assets } from "@/config/assets";
-function SectionLink({ to, children }: { to: "/league" | "/about"; children: React.ReactNode }) {
+import { PlayerLeaderboards } from "@/features/squad/player-leaderboards";
+function SectionLink({
+  to,
+  hash,
+  children,
+}: {
+  to: "/league" | "/about" | "/team";
+  hash?: string;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       to={to}
+      hash={hash}
       className="inline-flex items-center gap-2 border-b border-copper pb-1 text-xs font-bold uppercase tracking-wider text-copper transition-colors hover:text-foreground"
     >
       {children}
@@ -68,6 +78,20 @@ export function HomePage() {
         </div>
         <div className="min-w-0 self-center">
           <LeagueTable compact />
+        </div>
+      </section>
+      <section className="border-t border-border bg-secondary/30 py-20 lg:py-28">
+        <div className="site-container">
+          <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p className="eyebrow text-copper">{t("leaderboards.eyebrow")}</p>
+              <h2 className="section-title mt-4">{t("leaderboards.homeTitle")}</h2>
+            </div>
+            <SectionLink to="/team" hash="player-leaderboards">
+              {t("leaderboards.viewAll")}
+            </SectionLink>
+          </div>
+          <PlayerLeaderboards compact />
         </div>
       </section>
       <section className="relative min-h-[530px] overflow-hidden border-y border-border">

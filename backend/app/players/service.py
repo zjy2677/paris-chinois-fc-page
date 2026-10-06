@@ -2,19 +2,70 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import MatchGoal, Player, PlayerPhoto, SquadMembership
+from ..models import CompetitionSeason, Match, MatchEvent, Player, PlayerPhoto, SquadMembership
 from ..schemas import PlayerResponse
 from .schemas import (
+    LeaderboardEntry,
     PlayerCreate,
     PlayerInput,
+    PlayerLeaderboardsResponse,
     PlayerProfileResponse,
     PlayerUpdate,
     SquadSeasonResponse,
 )
+
+
+def leaderboard_entries(db: Session, season: str, player_field) -> list[LeaderboardEntry]:
+    """Aggregate one ranked list from the club events entered in the match editor."""
+    total = func.count(MatchEvent.id).label("total")
+    rows = db.execute(
+        select(Player, SquadMembership.shirt_number, total)
+        .join(MatchEvent, player_field == Player.id)
+        .join(Match, Match.id == MatchEvent.match_id)
+        .join(CompetitionSeason, CompetitionSeason.id == Match.competition_season_id)
+        .outerjoin(
+            SquadMembership,
+            and_(
+                SquadMembership.player_id == Player.id,
+                SquadMembership.season_label == season,
+            ),
+        )
+        .where(CompetitionSeason.season_label == season, MatchEvent.event_type == "goal")
+        .group_by(Player.id, SquadMembership.shirt_number)
+        .order_by(total.desc(), Player.display_name, Player.id)
+    ).all()
+    rank = 0
+    previous_total = None
+    entries = []
+    for position, (player, shirt_number, count) in enumerate(rows, start=1):
+        if count != previous_total:
+            rank = position
+            previous_total = count
+        entries.append(
+            LeaderboardEntry(
+                rank=rank,
+                player_id=player.id,
+                display_name=player.display_name,
+                chinese_name=player.chinese_name,
+                photo_url=player.photo_url,
+                has_uploaded_photo=db.get(PlayerPhoto, player.id) is not None,
+                shirt_number=shirt_number,
+                total=count,
+            )
+        )
+    return entries
+
+
+def leaderboards(db: Session, season: str) -> PlayerLeaderboardsResponse:
+    return PlayerLeaderboardsResponse(
+        season=season,
+        scorers=leaderboard_entries(db, season, MatchEvent.player_id),
+        assists=leaderboard_entries(db, season, MatchEvent.assist_player_id),
+    )
 
 
 def response(
@@ -130,16 +181,16 @@ def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
         .where(SquadMembership.player_id == player_id)
         .order_by(SquadMembership.season_label.desc())
     )
-    # Count events directly, without joining memberships and multiplying goal rows.
+    # Match events are the source of truth used by the match editor and leaderboards.
     goals = db.scalar(
         select(func.count())
-        .select_from(MatchGoal)
-        .where(MatchGoal.scorer_id == player_id, MatchGoal.goal_type != "own_goal")
+        .select_from(MatchEvent)
+        .where(MatchEvent.event_type == "goal", MatchEvent.player_id == player_id)
     )
     assists = db.scalar(
         select(func.count())
-        .select_from(MatchGoal)
-        .where(MatchGoal.assist_player_id == player_id, MatchGoal.goal_type != "own_goal")
+        .select_from(MatchEvent)
+        .where(MatchEvent.event_type == "goal", MatchEvent.assist_player_id == player_id)
     )
     return PlayerProfileResponse(
         id=player.id,
