@@ -1,9 +1,12 @@
 import urllib.parse
+import warnings
 from datetime import datetime
+from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 
@@ -61,6 +64,28 @@ def image_type(content_type: str, data: bytes) -> str:
         raise HTTPException(415, "Only PNG, JPEG, and WebP images are supported")
     if normalized == "image/webp" and data[8:12] != b"WEBP":
         raise HTTPException(415, "Invalid WebP image")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(data)) as image:
+                decoded_format = image.format
+                image.verify()
+            # verify() checks structure; load() also rejects truncated pixel data.
+            with Image.open(BytesIO(data)) as image:
+                image.load()
+    except (
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        OSError,
+        SyntaxError,
+        ValueError,
+    ) as error:
+        raise HTTPException(415, "Invalid image") from error
+    if (
+        decoded_format
+        != {"image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WEBP"}[normalized]
+    ):
+        raise HTTPException(415, "Image format does not match Content-Type")
     return normalized
 
 
@@ -132,8 +157,8 @@ def create_album(body: AlbumInput, db: DB, user: Annotated[User, Depends(require
     return album_response(db, row)
 
 
-async def new_asset(
-    request: Request,
+def new_asset(
+    image: tuple[str, bytes],
     db: DB,
     user_id: UUID | None,
     caption: str | None,
@@ -141,7 +166,7 @@ async def new_asset(
     status: str = "visible",
     **links,
 ) -> MediaAsset:
-    content_type, data = await read_image(request)
+    content_type, data = image
     asset = MediaAsset(
         uploaded_by=user_id,
         content_type=content_type,
@@ -171,7 +196,8 @@ async def upload_album_photo(
     caption: str | None = Query(default=None, max_length=900),
     alt: str | None = Query(default=None, max_length=900),
 ):
-    if db.get(PhotoAlbum, album_id) is None:
+    image = await read_image(request)
+    if db.get(PhotoAlbum, album_id, with_for_update=True) is None:
         raise HTTPException(404, "Album not found")
     count = (
         db.scalar(
@@ -181,8 +207,17 @@ async def upload_album_photo(
     )
     if count >= MAX_PHOTOS_PER_CONTENT:
         raise HTTPException(409, "Photo limit reached")
-    asset = await new_asset(request, db, user.id, caption, alt)
-    db.add(AlbumPhoto(album_id=album_id, media_id=asset.id, position=count))
+    asset = new_asset(image, db, user.id, caption, alt)
+    last_position = db.scalar(
+        select(func.max(AlbumPhoto.position)).where(AlbumPhoto.album_id == album_id)
+    )
+    db.add(
+        AlbumPhoto(
+            album_id=album_id,
+            media_id=asset.id,
+            position=(last_position + 1 if last_position is not None else 0),
+        )
+    )
     db.commit()
     return photo_response(asset)
 
@@ -198,7 +233,8 @@ async def upload_blog_photo(
     caption: str | None = Query(default=None, max_length=900),
     alt: str | None = Query(default=None, max_length=900),
 ):
-    post = db.get(BlogPost, post_id)
+    image = await read_image(request)
+    post = db.get(BlogPost, post_id, with_for_update=True)
     if post is None:
         raise HTTPException(404, "Post not found")
     if post.author_id != user.id and user.role != "admin":
@@ -213,8 +249,17 @@ async def upload_blog_photo(
     )
     if count >= MAX_PHOTOS_PER_CONTENT:
         raise HTTPException(409, "Photo limit reached")
-    asset = await new_asset(
-        request, db, user.id, caption, alt, blog_post_id=post_id, position=count
+    last_position = db.scalar(
+        select(func.max(MediaAsset.position)).where(MediaAsset.blog_post_id == post_id)
+    )
+    asset = new_asset(
+        image,
+        db,
+        user.id,
+        caption,
+        alt,
+        blog_post_id=post_id,
+        position=(last_position + 1 if last_position is not None else 0),
     )
     db.commit()
     return photo_response(asset)
@@ -234,7 +279,8 @@ async def upload_match_photo(
     caption: str | None = Query(default=None, max_length=900),
     alt: str | None = Query(default=None, max_length=900),
 ):
-    if db.get(Match, match_id) is None:
+    image = await read_image(request)
+    if db.get(Match, match_id, with_for_update=True) is None:
         raise HTTPException(404, "Match not found")
     count = (
         db.scalar(
@@ -244,7 +290,18 @@ async def upload_match_photo(
     )
     if count >= MAX_PHOTOS_PER_CONTENT:
         raise HTTPException(409, "Photo limit reached")
-    asset = await new_asset(request, db, user.id, caption, alt, match_id=match_id, position=count)
+    last_position = db.scalar(
+        select(func.max(MediaAsset.position)).where(MediaAsset.match_id == match_id)
+    )
+    asset = new_asset(
+        image,
+        db,
+        user.id,
+        caption,
+        alt,
+        match_id=match_id,
+        position=(last_position + 1 if last_position is not None else 0),
+    )
     db.commit()
     return photo_response(asset)
 
@@ -262,7 +319,8 @@ async def upload_guestbook_photo(
     caption: str | None = Query(default=None, max_length=900),
     alt: str | None = Query(default=None, max_length=900),
 ):
-    message = db.get(GuestbookMessage, message_id)
+    image = await read_image(request)
+    message = db.get(GuestbookMessage, message_id, with_for_update=True)
     token = request.cookies.get(COOKIE_NAME)
     if message is None or token is None or message.visitor_hash != token_hash(token):
         raise HTTPException(404, "Message not found")
@@ -271,8 +329,8 @@ async def upload_guestbook_photo(
     exists = db.scalar(select(MediaAsset.id).where(MediaAsset.guestbook_message_id == message_id))
     if exists:
         raise HTTPException(409, "A message can have one photo")
-    asset = await new_asset(
-        request, db, None, caption, alt, status="pending", guestbook_message_id=message_id
+    asset = new_asset(
+        image, db, None, caption, alt, status="pending", guestbook_message_id=message_id
     )
     db.commit()
     return photo_response(asset)
@@ -329,7 +387,7 @@ def photo_content(photo_id: UUID, db: DB):
     return Response(
         content=asset.data,
         media_type=asset.content_type,
-        headers={"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"},
+        headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
     )
 
 
