@@ -280,6 +280,15 @@ def test_legacy_player_can_be_read_and_given_a_chinese_name(player_client):
     path = f"/api/players/{legacy.id}"
     assert client.get(path).json()["chinese_name"] is None
     assert client.get("/api/players").json()[0]["display_name"] == "Existing Player"
+    edit = client.patch(
+        path + "?season=2026/2027",
+        json={"description": "Captain", "position": "Midfielders"},
+        headers=ORIGIN,
+    )
+    assert edit.status_code == 200, edit.text
+    assert edit.json()["description"] == "Captain"
+    assert edit.json()["position"] == "Midfielders"
+    assert edit.json()["chinese_name"] is None
     # Partial status changes remain possible before a legacy player's name is filled in.
     edit = client.patch(path + "?season=2026/2027", json={"active": False}, headers=ORIGIN)
     assert edit.status_code == 200 and edit.json()["chinese_name"] is None

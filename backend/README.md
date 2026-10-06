@@ -237,7 +237,10 @@ Both `display_name` (English name) and `chinese_name` are required when creating
 player. Names are trimmed, must not be blank, and are limited to 150 characters.
 The Chinese interface uses `chinese_name`; French and English use `display_name`.
 Legacy players without a Chinese name fall back to their existing English name.
-Admins can add the missing name through the player form, which requires both names.
+Admins can add the missing name through the player form. Existing players without a
+Chinese name can still have other details edited; leaving that field blank preserves
+the missing name. New players require both names, and an existing Chinese name cannot
+be cleared.
 
 `photo_url` and `shirt_number` are optional. Photos must use a public HTTPS image link
 without embedded credentials; the frontend displays a silhouette if absent or broken.
