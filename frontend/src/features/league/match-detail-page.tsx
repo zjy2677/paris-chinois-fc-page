@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import { PageIntro } from "@/components/layout/page-intro";
@@ -13,7 +13,7 @@ import { useAccount } from "@/features/auth/auth-api";
 import { MatchRecordEditor } from "./match-record-editor";
 import { HighlightEditor } from "./highlight-editor";
 import { PhotoGrid } from "@/features/gallery/photo-grid";
-import { uploadPhoto } from "@/features/gallery/media-api";
+import { PhotoUploadError, uploadPhotos } from "@/features/gallery/upload-photos";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t, language } = useI18n();
@@ -21,6 +21,9 @@ export function MatchDetailPage({ id }: { id: string }) {
   const account = useAccount();
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPending, setPhotoPending] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const uploading = useRef(false);
   if (query.isPending || query.isError) {
     const missing = query.error instanceof ApiError && [404, 422].includes(query.error.status);
     return (
@@ -141,6 +144,8 @@ export function MatchDetailPage({ id }: { id: string }) {
           {account.data?.role === "admin" ? (
             <div className="mt-5 flex flex-wrap items-center gap-3 border border-border bg-card p-4">
               <input
+                ref={photoInput}
+                disabled={photoPending}
                 multiple
                 accept="image/png,image/jpeg,image/webp"
                 type="file"
@@ -151,21 +156,36 @@ export function MatchDetailPage({ id }: { id: string }) {
                 disabled={!photoFiles.length || photoPending}
                 className="bg-primary px-4 py-2 text-sm font-bold disabled:opacity-50"
                 onClick={async () => {
+                  if (uploading.current) return;
+                  uploading.current = true;
                   setPhotoPending(true);
+                  setPhotoError(null);
                   try {
-                    for (const file of photoFiles)
-                      await uploadPhoto(`/matches/${match.id}/photos`, file, {
+                    await uploadPhotos(
+                      `/matches/${match.id}/photos`,
+                      photoFiles,
+                      () => setPhotoFiles((remaining) => remaining.slice(1)),
+                      {
                         alt: `${match.home.name} — ${match.away.name}`,
-                      });
-                    setPhotoFiles([]);
-                    await query.refetch();
+                      },
+                    );
+                    if (photoInput.current) photoInput.current.value = "";
+                  } catch (error) {
+                    if (error instanceof PhotoUploadError) setPhotoError(error.fileName);
                   } finally {
+                    await query.refetch();
+                    uploading.current = false;
                     setPhotoPending(false);
                   }
                 }}
               >
                 {photoPending ? t("media.uploading") : t("media.addPhotos")}
               </button>
+              {photoError ? (
+                <p role="alert" className="w-full text-copper">
+                  {t("media.uploadError")} {photoError}
+                </p>
+              ) : null}
             </div>
           ) : null}
           {match.photos.length ? (
