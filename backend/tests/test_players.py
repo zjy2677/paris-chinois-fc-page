@@ -13,12 +13,13 @@ from app.models import (
     Match,
     MatchEvent,
     Player,
+    PlayerPhoto,
     SquadMembership,
     Team,
     User,
 )
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
@@ -307,7 +308,20 @@ def test_leaderboards_and_profiles_use_recorded_match_events(player_client):
     )
     db.commit()
 
-    response = client.get("/api/player-leaderboards?season=2026/2027")
+    db.add(PlayerPhoto(player_id=players[0].id, content_type="image/png", data=b"photo"))
+    db.commit()
+    statements = []
+
+    def record_statement(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(db.bind, "before_cursor_execute", record_statement)
+    try:
+        response = client.get("/api/player-leaderboards?season=2026/2027")
+    finally:
+        event.remove(db.bind, "before_cursor_execute", record_statement)
+    # Each ranking checks photo existence within its aggregate SELECT.
+    assert len([sql for sql in statements if "player_photos" in sql]) == 2
     assert response.status_code == 200
     data = response.json()
     assert [(row["display_name"], row["rank"], row["total"]) for row in data["scorers"]] == [
@@ -320,6 +334,8 @@ def test_leaderboards_and_profiles_use_recorded_match_events(player_client):
         ("Alpha", 2, 1),
     ]
     assert data["scorers"][2]["shirt_number"] == 11
+    assert [row["has_uploaded_photo"] for row in data["scorers"]] == [True, False, False]
+    assert [row["has_uploaded_photo"] for row in data["assists"]] == [False, True]
     profile = client.get(f"/api/players/{players[0].id}").json()
     assert profile["goals"] == 2
     assert profile["assists"] == 1
