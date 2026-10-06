@@ -21,6 +21,8 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
   const { t, c } = useI18n();
   const cache = useQueryClient();
   const [name, setName] = useState(player?.display_name ?? "");
+  const [chineseName, setChineseName] = useState(player?.chinese_name ?? "");
+  const chineseNameRequired = player?.chinese_name !== null;
   const [description, setDescription] = useState(player?.description ?? "");
   const [photo, setPhoto] = useState(player?.photo_url ?? "");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -38,6 +40,7 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
       const saved = await savePlayer(
         {
           display_name: name.trim(),
+          ...(chineseName.trim() ? { chinese_name: chineseName.trim() } : {}),
           description: description.trim() || null,
           ...(photoMode === "url"
             ? { photo_url: photo.trim() }
@@ -95,6 +98,16 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
                 maxLength={150}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="block text-sm">
+              {t("squad.chineseName")}
+              <input
+                required={chineseNameRequired}
+                maxLength={150}
+                value={chineseName}
+                onChange={(e) => setChineseName(e.target.value)}
                 className={inputClass}
               />
             </label>
@@ -218,6 +231,7 @@ export function PlayerEditor({ player, onClose }: { player?: Player; onClose: ()
               disabled={
                 save.isPending ||
                 !name.trim() ||
+                (chineseNameRequired && !chineseName.trim()) ||
                 (photoMode === "url" && !photo.trim()) ||
                 (photoMode === "upload" && !photoFile && !player?.has_uploaded_photo)
               }

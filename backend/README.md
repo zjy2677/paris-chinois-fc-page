@@ -224,13 +224,23 @@ Example POST body:
 
 ```json
 {
-  "display_name": "Player name",
+  "display_name": "Zhang Wei",
+  "chinese_name": "张伟",
   "season": "2026/2027",
   "position": "Midfielders",
   "shirt_number": 8,
   "photo_url": "https://your-image-host.example/player.jpg"
 }
 ```
+
+Both `display_name` (English name) and `chinese_name` are required when creating a
+player. Names are trimmed, must not be blank, and are limited to 150 characters.
+The Chinese interface uses `chinese_name`; French and English use `display_name`.
+Legacy players without a Chinese name fall back to their existing English name.
+Admins can add the missing name through the player form. Existing players without a
+Chinese name can still have other details edited; leaving that field blank preserves
+the missing name. New players require both names, and an existing Chinese name cannot
+be cleared.
 
 `photo_url` and `shirt_number` are optional. Photos must use a public HTTPS image link
 without embedded credentials; the frontend displays a silhouette if absent or broken.
@@ -239,12 +249,14 @@ This feature stores a link, not an uploaded image. Positions are `Goalkeepers`,
 and unique within the season, including inactive players; conflicts return 409.
 
 PATCH accepts only changed fields. Use null to clear the photo or shirt number, or
-`{"active": true}` to restore a player. The display name, photo, and active status belong
+`{"active": true}` to restore a player. Either name can be updated independently;
+explicit null or blank names are rejected. The names, photo, and active status belong
 to the permanent `players` record; position and shirt number belong to that season's
 `squad_memberships` record. Deactivation applies across seasons and preserves historical
 goals and assists. User accounts and player records remain separate; adding a player
-does not grant an account the player role. No new player migration is needed because
-these tables and the photo column already exist.
+does not grant an account the player role. Migration `d4e5f6a7b8c9` adds the nullable
+`players.chinese_name` column after `c3d4e5f6a7b8`, preserving existing English names.
+Deploy the backend migration before the frontend that submits both names.
 
 Writes use the existing admin dependency, trusted-origin check, session cookie, and
 rate limit. Test manually by adding a player as an admin, refreshing the public Team

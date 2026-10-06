@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/i18n/i18n-provider";
 import type { Player } from "@/types/football";
+import { localizedPlayerName } from "@/lib/player-name";
 import { PlayerPortrait } from "./player-portrait";
 import { playerPhotoUrl } from "./squad-api";
 /** Render player details, a photo with silhouette fallback, and optional management actions. */
@@ -14,16 +15,13 @@ export function PlayerCard({
   actions?: ReactNode;
   showProfileLink?: boolean;
 }) {
-  const { c, t } = useI18n();
+  const { c, t, language } = useI18n();
+  const name = localizedPlayerName(player.display_name, player.chinese_name, language);
   return (
     <article
       className={`group relative overflow-hidden border border-border bg-card ${player.active ? "" : "opacity-70"}`}
     >
-      <PlayerPortrait
-        name={player.display_name}
-        photoUrl={playerPhotoUrl(player)}
-        number={player.shirt_number}
-      />
+      <PlayerPortrait name={name} photoUrl={playerPhotoUrl(player)} number={player.shirt_number} />
       <div className="border-t-2 border-primary p-4 md:p-5">
         <p className="eyebrow text-copper">{c(player.position.slice(0, -1))}</p>
         {(player.alternate_positions ?? []).length > 0 && (
@@ -39,10 +37,10 @@ export function PlayerCard({
               params={{ playerId: `player_${player.id}` }}
               className="hover:text-copper focus-visible:outline focus-visible:outline-2 focus-visible:outline-copper"
             >
-              {player.display_name}
+              {name}
             </Link>
           ) : (
-            player.display_name
+            name
           )}
         </h3>
         {!player.active && (

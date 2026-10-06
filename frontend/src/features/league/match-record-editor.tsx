@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { MatchEvent } from "@/types/football";
 import { useI18n } from "@/i18n/i18n-provider";
+import { localizedPlayerName } from "@/lib/player-name";
 import { usePlayers, useSaveMatchRecord, type MatchDetail } from "./league-api";
 
 import { isValidScore, scoreError } from "./match-score";
@@ -38,7 +39,7 @@ const reconcileGoals = (events: EditableEvent[], target: number) => {
 };
 
 export function MatchRecordEditor({ match }: { match: MatchDetail }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const players = usePlayers();
   const save = useSaveMatchRecord(match.id);
   const [editing, setEditing] = useState(false);
@@ -205,7 +206,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
               {event.event_type === "goal" && <option value="">{t("match.unknownScorer")}</option>}
               {players.data?.map((player) => (
                 <option key={player.id} value={player.id}>
-                  {player.name}
+                  {localizedPlayerName(player.name, player.chineseName, language)}
                 </option>
               ))}
             </select>
@@ -220,7 +221,7 @@ export function MatchRecordEditor({ match }: { match: MatchDetail }) {
                   ?.filter((p) => p.id !== event.player_id)
                   .map((player) => (
                     <option key={player.id} value={player.id}>
-                      {player.name}
+                      {localizedPlayerName(player.name, player.chineseName, language)}
                     </option>
                   ))}
               </select>
