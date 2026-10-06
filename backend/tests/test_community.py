@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timezone
+from io import BytesIO
 from uuid import uuid4
 
 import pytest
@@ -10,11 +11,18 @@ from app.database import get_db
 from app.models import BlogPost, GuestbookMessage, User
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 CONTENT = {"title": "A club story", "body": "Our team played a great match together."}
+
+
+def png_image():
+    buffer = BytesIO()
+    Image.new("RGB", (2, 2)).save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 @pytest.fixture
@@ -144,7 +152,7 @@ def test_guestbook_photo_stays_pending_until_admin_approval(community):
 
     uploaded = client.post(
         f"/api/media/guestbook/{message_id}/photo?alt=Match%20photo",
-        content=b"\x89PNG\r\n\x1a\nimage-data",
+        content=png_image(),
         headers=ORIGIN | {"Content-Type": "image/png"},
     )
     assert uploaded.status_code == 201
@@ -165,7 +173,11 @@ def test_guestbook_photo_stays_pending_until_admin_approval(community):
     assert approved.json()["status"] == "visible"
     public = client.get("/api/guestbook/messages").json()
     assert public[0]["photo"]["url"] == f"/api/media/photos/{photo_id}/content"
-    assert client.get(public[0]["photo"]["url"]).status_code == 200
+    image = client.get(public[0]["photo"]["url"])
+    assert image.status_code == 200
+    assert image.headers["cache-control"] == "no-cache"
+    client.post(f"/api/guestbook/messages/{message_id}/hide", headers=ORIGIN)
+    assert client.get(public[0]["photo"]["url"]).status_code == 404
 
 
 def test_visible_guestbook_message_rejects_late_photo_upload(community):
@@ -177,7 +189,7 @@ def test_visible_guestbook_message_rejects_late_photo_upload(community):
     )
     response = client.post(
         f"/api/media/guestbook/{created.json()['id']}/photo",
-        content=b"\x89PNG\r\n\x1a\nimage-data",
+        content=png_image(),
         headers=ORIGIN | {"Content-Type": "image/png"},
     )
     assert response.status_code == 409
