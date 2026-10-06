@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/i18n/i18n-provider";
 import { usePublishedPost } from "./blog-api";
+import { PhotoGrid } from "@/features/gallery/photo-grid";
 
 export function BlogDetailPage({ id }: { id: string }) {
   const { t, formatDate } = useI18n();
@@ -24,6 +25,11 @@ export function BlogDetailPage({ id }: { id: string }) {
       <div className="mt-12 whitespace-pre-wrap text-base leading-8 md:text-lg">
         {post.data.body}
       </div>
+      {post.data.photos?.length ? (
+        <div className="mt-12">
+          <PhotoGrid photos={post.data.photos} />
+        </div>
+      ) : null}
     </article>
   );
 }

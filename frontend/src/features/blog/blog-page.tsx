@@ -14,6 +14,7 @@ import {
   type BlogStatus,
 } from "./blog-api";
 import { BlogCard } from "./blog-card";
+import { uploadPhoto } from "@/features/gallery/media-api";
 
 const emptyForm: BlogInput = { title: "", body: "" };
 
@@ -27,25 +28,36 @@ export function BlogPage() {
   const mutation = useBlogMutation();
   const [form, setForm] = useState<BlogInput>(emptyForm);
   const [editing, setEditing] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoError, setPhotoError] = useState(false);
 
   function save(event: { preventDefault: () => void }, submit: boolean) {
     event.preventDefault();
     const path = editing ? `/posts/${editing}` : "/posts";
+    setPhotoError(false);
     mutation.mutate(
       {
         path,
         method: editing ? "PATCH" : "POST",
-        body: editing ? form : { ...form, submit },
+        body: editing ? form : { ...form, submit: photoFiles.length ? false : submit },
       },
       {
-        onSuccess: (post) => {
-          if (editing && submit) {
+        onSuccess: async (post) => {
+          try {
+            for (const file of photoFiles)
+              await uploadPhoto(`/blog/${post.id}/photos`, file, { alt: form.title });
+          } catch {
+            setPhotoError(true);
+            return;
+          }
+          if ((editing || photoFiles.length > 0) && submit) {
             mutation.mutate(
               { path: `/posts/${post.id}/submit` },
               {
                 onSuccess: () => {
                   setForm(emptyForm);
                   setEditing(null);
+                  setPhotoFiles([]);
                 },
               },
             );
@@ -53,6 +65,7 @@ export function BlogPage() {
           }
           setForm(emptyForm);
           setEditing(null);
+          setPhotoFiles([]);
         },
       },
     );
@@ -61,6 +74,7 @@ export function BlogPage() {
   function edit(post: BlogPost) {
     setEditing(post.id);
     setForm({ title: post.title, body: post.body });
+    setPhotoFiles([]);
     document.querySelector("#blog-editor")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -134,6 +148,20 @@ export function BlogPage() {
                   className="w-full border border-border bg-card px-4 py-3"
                 />
               </Field>
+              <Field label={t("media.addPhotos")}>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setPhotoFiles(Array.from(event.target.files ?? []).slice(0, 20))
+                  }
+                  className="w-full border border-border bg-card px-4 py-3"
+                />
+                <span className="block font-normal text-muted-foreground">
+                  {t("media.photoHelp")}
+                </span>
+              </Field>
               <Field label={t("blog.body")}>
                 <textarea
                   required
@@ -176,6 +204,7 @@ export function BlogPage() {
                 ) : null}
               </div>
               {mutation.isError ? <p className="text-copper">{t("blog.saveError")}</p> : null}
+              {photoError ? <p className="text-copper">{t("media.uploadError")}</p> : null}
             </form>
           )}
         </section>

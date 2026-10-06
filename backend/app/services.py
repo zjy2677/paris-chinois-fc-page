@@ -11,6 +11,7 @@ from .models import (
     MatchEvent,
     MatchReport,
     MatchVideo,
+    MediaAsset,
     Player,
     PlayerPhoto,
     SquadMembership,
@@ -106,6 +107,11 @@ def match_detail(db: Session, match_id: UUID):
         .order_by(MatchVideo.created_at, MatchVideo.id)
     ).all()
     report = db.scalar(select(MatchReport).where(MatchReport.match_id == match_id))
+    photos = db.scalars(
+        select(MediaAsset)
+        .where(MediaAsset.match_id == match_id, MediaAsset.status == "visible")
+        .order_by(MediaAsset.position, MediaAsset.created_at)
+    ).all()
     scorer, assistant = aliased(Player), aliased(Player)
     events = db.execute(
         select(MatchEvent, scorer, assistant)
@@ -127,6 +133,7 @@ def match_detail(db: Session, match_id: UUID):
             for video in videos
         ],
         "description": report.description if report else None,
+        "photos": photos,
         "events": [
             {
                 "id": event.id,

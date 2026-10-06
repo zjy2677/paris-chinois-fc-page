@@ -9,6 +9,7 @@ import {
   useGuestbookMutation,
 } from "./guestbook-api";
 import { MessageCard } from "./message-card";
+import { uploadPhoto } from "@/features/gallery/media-api";
 
 export function GuestbookPage() {
   const { t } = useI18n();
@@ -20,16 +21,30 @@ export function GuestbookPage() {
   const [nickname, setNickname] = useState("");
   const [body, setBody] = useState("");
   const [published, setPublished] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [awaitingReview, setAwaitingReview] = useState(false);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     setPublished(false);
+    setAwaitingReview(false);
     mutation.mutate(
       { path: "/messages", body: { nickname, body } },
       {
-        onSuccess: () => {
+        onSuccess: async (message) => {
+          if (photo) {
+            try {
+              await uploadPhoto(`/guestbook/${message.id}/photo`, photo, {
+                alt: `${nickname} guestbook photo`,
+              });
+              setAwaitingReview(true);
+            } catch {
+              // The text message remains published if its optional photo fails.
+            }
+          }
           setNickname("");
           setBody("");
+          setPhoto(null);
           setPublished(true);
         },
       },
@@ -69,6 +84,18 @@ export function GuestbookPage() {
               />
             </label>
             <label className="block space-y-2 text-sm font-bold">
+              <span>{t("media.addPhotos")}</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+                className="w-full border border-border bg-background px-4 py-3"
+              />
+              <span className="block font-normal text-muted-foreground">
+                {t("media.photoHelp")}
+              </span>
+            </label>
+            <label className="block space-y-2 text-sm font-bold">
               <span>{t("guestbook.message")}</span>
               <textarea
                 required
@@ -91,7 +118,12 @@ export function GuestbookPage() {
                 {mutation.isPending ? t("guestbook.posting") : t("guestbook.post")}
               </button>
             </div>
-            {published ? <p className="text-sm text-copper">{t("guestbook.success")}</p> : null}
+            {published && !awaitingReview ? (
+              <p className="text-sm text-copper">{t("guestbook.success")}</p>
+            ) : null}
+            {awaitingReview ? (
+              <p className="text-sm text-copper">{t("media.pendingModeration")}</p>
+            ) : null}
             {mutation.isError ? (
               <p className="text-sm text-copper">{t("guestbook.error")}</p>
             ) : null}

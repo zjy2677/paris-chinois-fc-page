@@ -1,5 +1,6 @@
 import { useI18n } from "@/i18n/i18n-provider";
 import type { GuestbookMessage } from "./guestbook-api";
+import { mediaUrl } from "@/features/gallery/media-api";
 
 const accents = ["border-t-primary", "border-t-copper", "border-t-foreground/60"] as const;
 
@@ -28,6 +29,14 @@ export function MessageCard({
       <p className="mt-5 whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">
         {message.body}
       </p>
+      {message.photo ? (
+        <img
+          src={mediaUrl(message.photo.url)}
+          alt={message.photo.alt_text}
+          loading="lazy"
+          className="mt-5 aspect-[4/3] w-full object-cover"
+        />
+      ) : null}
       <div className="mt-6 flex items-end justify-between gap-4 border-t border-border pt-4">
         <time className="text-xs text-muted-foreground">
           {formatDate(message.created_at, { day: "numeric", month: "long", year: "numeric" })}
