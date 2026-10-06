@@ -63,13 +63,11 @@ export function persistPublicQueries(queryClient: QueryClient) {
         )
         .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt)
         .slice(0, MAX_QUERIES)
-        .map(
-          (query): StoredQuery => ({
-            queryKey: query.queryKey,
-            data: query.state.data,
-            updatedAt: query.state.dataUpdatedAt,
-          }),
-        );
+        .map((query): StoredQuery => ({
+          queryKey: query.queryKey,
+          data: query.state.data,
+          updatedAt: query.state.dataUpdatedAt,
+        }));
 
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(queries));
     } catch {
