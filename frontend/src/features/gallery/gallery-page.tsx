@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Images } from "lucide-react";
 import { PageIntro } from "@/components/layout/page-intro";
 import { assets } from "@/config/assets";
 import { useAccount } from "@/features/auth/auth-api";
 import { useI18n } from "@/i18n/i18n-provider";
 import { PhotoGrid } from "./photo-grid";
-import { uploadPhoto, useAlbums, useCreateAlbum } from "./media-api";
+import { useAlbums, useCreateAlbum } from "./media-api";
+import { PhotoUploadError, uploadPhotos } from "./upload-photos";
 
 export function GalleryPage() {
   const { t, formatDate } = useI18n();
@@ -17,32 +18,47 @@ export function GalleryPage() {
   const [date, setDate] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [retryAlbumId, setRetryAlbumId] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const submitting = useRef(false);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
-    create.mutate(
-      {
-        title,
-        description: description || null,
-        event_date: date ? new Date(date).toISOString() : null,
-      },
-      {
-        onSuccess: async (album) => {
-          setUploading(true);
-          try {
-            for (const file of files)
-              await uploadPhoto(`/albums/${album.id}/photos`, file, { alt: title });
-            setTitle("");
-            setDescription("");
-            setDate("");
-            setFiles([]);
-            await albums.refetch();
-          } finally {
-            setUploading(false);
-          }
-        },
-      },
-    );
+    if (submitting.current || !files.length) return;
+    submitting.current = true;
+    setUploading(true);
+    setPhotoError(null);
+    try {
+      let albumId = retryAlbumId;
+      if (!albumId) {
+        const album = await create.mutateAsync({
+          title,
+          description: description || null,
+          event_date: date ? new Date(date).toISOString() : null,
+        });
+        albumId = album.id;
+        setRetryAlbumId(album.id);
+      }
+      await uploadPhotos(
+        `/albums/${albumId}/photos`,
+        files,
+        () => setFiles((remaining) => remaining.slice(1)),
+        { alt: title },
+      );
+      setTitle("");
+      setDescription("");
+      setDate("");
+      setRetryAlbumId(null);
+      if (fileInput.current) fileInput.current.value = "";
+    } catch (error) {
+      if (error instanceof PhotoUploadError) setPhotoError(error.fileName);
+      // Album creation errors are exposed by the mutation below.
+    } finally {
+      await albums.refetch();
+      submitting.current = false;
+      setUploading(false);
+    }
   }
 
   return (
@@ -64,6 +80,7 @@ export function GalleryPage() {
             </h2>
             <input
               required
+              disabled={uploading || retryAlbumId !== null}
               minLength={2}
               maxLength={180}
               placeholder={t("gallery.albumTitle")}
@@ -73,11 +90,13 @@ export function GalleryPage() {
             />
             <input
               type="date"
+              disabled={uploading || retryAlbumId !== null}
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="border border-border bg-background px-4 py-3"
             />
             <textarea
+              disabled={uploading || retryAlbumId !== null}
               maxLength={2000}
               placeholder={t("gallery.description")}
               value={description}
@@ -86,6 +105,8 @@ export function GalleryPage() {
             />
             <input
               required
+              ref={fileInput}
+              disabled={uploading}
               multiple
               accept="image/png,image/jpeg,image/webp"
               type="file"
@@ -93,11 +114,25 @@ export function GalleryPage() {
               className="md:col-span-2"
             />
             <button
-              disabled={create.isPending || uploading}
+              disabled={uploading || !files.length}
               className="bg-primary px-5 py-3 font-bold md:w-fit"
             >
-              {uploading ? t("gallery.uploading") : t("gallery.publish")}
+              {uploading
+                ? t("gallery.uploading")
+                : retryAlbumId
+                  ? t("media.retryUpload")
+                  : t("gallery.publish")}
             </button>
+            {create.isError ? (
+              <p role="alert" className="text-copper md:col-span-2">
+                {t("blog.saveError")}
+              </p>
+            ) : null}
+            {photoError ? (
+              <p role="alert" className="text-copper md:col-span-2">
+                {t("media.uploadError")} {photoError}
+              </p>
+            ) : null}
           </form>
         ) : null}
         {albums.isPending ? <p>{t("gallery.loading")}</p> : null}
