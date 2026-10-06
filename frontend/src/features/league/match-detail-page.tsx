@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
+import { localizedPlayerName } from "@/lib/player-name";
 import { PageIntro } from "@/components/layout/page-intro";
 import { assets } from "@/config/assets";
 import { useMatch, ApiError } from "./league-api";
@@ -12,7 +13,7 @@ import { MatchRecordEditor } from "./match-record-editor";
 import { HighlightEditor } from "./highlight-editor";
 
 export function MatchDetailPage({ id }: { id: string }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const query = useMatch(id);
   const account = useAccount();
   if (query.isPending || query.isError) {
@@ -85,12 +86,24 @@ export function MatchDetailPage({ id }: { id: string }) {
                           )}
                         </span>
                       )}
-                      {event.player_name ?? t("match.unknownScorer")}
+                      {localizedPlayerName(
+                        event.player_name ?? t("match.unknownScorer"),
+                        event.player_chinese_name,
+                        language,
+                      )}
                     </span>
                     {event.assist_player_name && (
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <span aria-hidden="true">🎯</span>
-                        <span>{t("match.assistedBy", { name: event.assist_player_name })}</span>
+                        <span>
+                          {t("match.assistedBy", {
+                            name: localizedPlayerName(
+                              event.assist_player_name,
+                              event.assist_player_chinese_name,
+                              language,
+                            ),
+                          })}
+                        </span>
                       </span>
                     )}
                   </div>

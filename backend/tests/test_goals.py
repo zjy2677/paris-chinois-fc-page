@@ -34,7 +34,10 @@ def goals_client(monkeypatch):
             Team(name=name, fla_team_id=-(uuid4().int % 1000000000))
             for name in ("Home", "Away", "Other")
         ]
-        players = [Player(display_name=name) for name in ("Scorer", "Assistant")]
+        players = [
+            Player(display_name=name, chinese_name=chinese_name)
+            for name, chinese_name in (("Scorer", "射手"), ("Assistant", "助攻球员"))
+        ]
         season = CompetitionSeason(
             fla_championship_id=14,
             fla_season_id=uuid4().int % 1000000000,
@@ -97,7 +100,9 @@ def test_goal_lifecycle_and_public_match_detail(goals_client):
     assert response.status_code == 201, response.text
     goal = response.json()
     assert goal["scorer"]["display_name"] == "Scorer"
+    assert goal["scorer"]["chinese_name"] == "射手"
     assert goal["assist_player"]["display_name"] == "Assistant"
+    assert goal["assist_player"]["chinese_name"] == "助攻球员"
     path = f"{base}/goals/{goal['id']}"
     response = client.patch(
         path, json={"scorer_id": str(players[1].id), "assist_player_id": None}, headers=ORIGIN
@@ -298,6 +303,11 @@ def test_match_record_rejects_self_assist_and_accepts_valid_pair(goals_client, c
     response = client.put(path, json={"description": "Saved", "events": events}, headers=ORIGIN)
     assert response.status_code == 200, response.text
     assert len(response.json()["events"]) == count
+    public_event = client.get(f"/api/matches/{match.id}").json()["events"][0]
+    assert public_event["player_name"] == "Scorer"
+    assert public_event["player_chinese_name"] == "射手"
+    assert public_event["assist_player_name"] == "Assistant"
+    assert public_event["assist_player_chinese_name"] == "助攻球员"
     assert response.json()["description"] == "Saved"
 
 

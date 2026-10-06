@@ -19,10 +19,16 @@ export class PlayerPhotoUploadError extends PlayerApiError {}
 export type PlayerInput = Pick<
   Player,
   "display_name" | "shirt_number" | "position" | "alternate_positions" | "description"
-> & { photo_url?: string | null };
+> & { chinese_name: string; photo_url?: string | null };
 export type PlayerProfile = Pick<
   Player,
-  "id" | "display_name" | "photo_url" | "has_uploaded_photo" | "description" | "active"
+  | "id"
+  | "display_name"
+  | "chinese_name"
+  | "photo_url"
+  | "has_uploaded_photo"
+  | "description"
+  | "active"
 > & {
   squads: Pick<Player, "season" | "position" | "alternate_positions" | "shirt_number">[];
   goals: number;

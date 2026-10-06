@@ -8,6 +8,7 @@ import { LeagueTable } from "../src/features/league/league-table";
 import { MatchCard } from "../src/features/league/match-card";
 import { ContactForm } from "../src/features/contact/contact-form";
 import { PlayerCard } from "../src/features/squad/player-card";
+import { localizedPlayerName } from "../src/lib/player-name";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const nextMatch = {
   id: "test",
@@ -24,6 +25,7 @@ import type { Player } from "../src/types/football";
 const player: Player = {
   id: "test-player",
   display_name: "Test Player",
+  chinese_name: "测试球员",
   photo_url: null,
   has_uploaded_photo: false,
   description: null,
@@ -69,6 +71,8 @@ for (const language of languages) {
       assert.ok(markup.includes(translations[language][key]), key);
     assert.ok(markup.includes('value="general"'));
     assert.ok(markup.includes("20:30"));
+    assert.ok(markup.includes(language === "zh" ? "测试球员" : "Test Player"));
+    assert.ok(!markup.includes(language === "zh" ? "Test Player" : "测试球员"));
     if (language !== "en") {
       assert.ok(!markup.includes("Send message"));
     }
@@ -96,5 +100,19 @@ for (const language of languages) {
       day: "numeric",
     });
     assert.ok(sampleDate.includes({ en: "October", fr: "octobre", zh: "10月" }[language]));
+  });
+  test(`${language}: legacy names fall back to English`, () => {
+    for (const chineseName of [null, undefined, " "]) {
+      assert.equal(
+        localizedPlayerName("Existing Player", chineseName, language),
+        "Existing Player",
+      );
+    }
+    const markup = renderToStaticMarkup(
+      <I18nProvider initialLanguage={language}>
+        <PlayerCard player={{ ...player, chinese_name: null }} showProfileLink={false} />
+      </I18nProvider>,
+    );
+    assert.ok(markup.includes("Test Player"));
   });
 }

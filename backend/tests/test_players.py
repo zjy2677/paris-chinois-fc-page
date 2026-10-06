@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 ORIGIN = {"Origin": "http://localhost:4173"}
 BODY = {
     "display_name": "New Player",
+    "chinese_name": "新球员",
     "photo_url": "https://example.com/photo.jpg",
     "shirt_number": 9,
     "position": "Forwards",
@@ -107,6 +108,10 @@ def test_admin_required(player_client, role, status):
     "change",
     [
         {"display_name": " "},
+        {"display_name": None},
+        {"chinese_name": " "},
+        {"chinese_name": None},
+        {"chinese_name": "名" * 151},
         {"photo_url": "javascript:alert(1)"},
         {"photo_url": "http://example.com/a.jpg"},
         {"photo_url": "https://user:pass@example.com/a.jpg"},
@@ -229,3 +234,56 @@ def test_position_validation():
         PlayerCreate.model_validate(BODY | {"alternate_positions": ["Forwards"]})
     with pytest.raises(ValidationError):
         PlayerCreate.model_validate(BODY | {"alternate_positions": ["Defenders", "Defenders"]})
+
+
+@pytest.mark.parametrize("name", ["display_name", "chinese_name"])
+def test_both_names_required_on_create(player_client, name):
+    client, _, _ = player_client
+    payload = {key: value for key, value in BODY.items() if key != name}
+    assert client.post("/api/players", json=payload, headers=ORIGIN).status_code == 422
+    assert client.get("/api/players").json() == []
+
+
+def test_bilingual_names_create_update_and_public_responses(player_client):
+    client, db, _ = player_client
+    names = {"display_name": "  Zhang Wei  ", "chinese_name": "  张伟  "}
+    created = client.post("/api/players", json=BODY | names, headers=ORIGIN)
+    assert created.status_code == 201, created.text
+    player_id = created.json()["id"]
+    path = f"/api/players/{player_id}"
+    expected = {"display_name": "Zhang Wei", "chinese_name": "张伟"}
+    for key, value in expected.items():
+        assert created.json()[key] == value
+        assert client.get("/api/admin/players").json()[0][key] == value
+    edited = client.patch(
+        path + "?season=2026/2027", json={"chinese_name": "  张玮  "}, headers=ORIGIN
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["display_name"] == "Zhang Wei"
+    assert edited.json()["chinese_name"] == "张玮"
+    assert (
+        db.scalar(select(Player).where(Player.display_name == "Zhang Wei")).chinese_name == "张玮"
+    )
+    client.cookies.clear()
+    for data in [client.get(path).json(), client.get("/api/players").json()[0]]:
+        assert data["display_name"] == "Zhang Wei"
+        assert data["chinese_name"] == "张玮"
+
+
+def test_legacy_player_can_be_read_and_given_a_chinese_name(player_client):
+    client, db, _ = player_client
+    legacy = Player(display_name="Existing Player")
+    db.add(legacy)
+    db.flush()
+    db.add(SquadMembership(player_id=legacy.id, season_label="2026/2027", position="Defenders"))
+    db.commit()
+    path = f"/api/players/{legacy.id}"
+    assert client.get(path).json()["chinese_name"] is None
+    assert client.get("/api/players").json()[0]["display_name"] == "Existing Player"
+    # Partial status changes remain possible before a legacy player's name is filled in.
+    edit = client.patch(path + "?season=2026/2027", json={"active": False}, headers=ORIGIN)
+    assert edit.status_code == 200 and edit.json()["chinese_name"] is None
+    edit = client.patch(path + "?season=2026/2027", json={"chinese_name": "老队员"}, headers=ORIGIN)
+    assert edit.status_code == 200
+    assert edit.json()["display_name"] == "Existing Player"
+    assert client.get(path).json()["chinese_name"] == "老队员"

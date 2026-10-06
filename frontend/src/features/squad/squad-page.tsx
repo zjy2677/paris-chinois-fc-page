@@ -6,6 +6,7 @@ import { PageIntro } from "@/components/layout/page-intro";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { Player } from "@/types/football";
+import { localizedPlayerName } from "@/lib/player-name";
 import { useAccount } from "@/features/auth/auth-api";
 import { PlayerCard } from "./player-card";
 import { PlayerEditor } from "./player-editor";
@@ -14,7 +15,7 @@ import { positions, playerRequest, SQUAD_SEASON, useSquad } from "./squad-api";
 
 /** Render the filtered season squad and player management controls for administrators. */
 export function SquadPage() {
-  const { t, c } = useI18n();
+  const { t, c, language } = useI18n();
   const account = useAccount();
   const admin = account.data?.role === "admin";
   const squad = useSquad(admin ? account.data?.id : undefined);
@@ -146,7 +147,13 @@ export function SquadPage() {
       >
         <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
           <DialogTitle>
-            {t("squad.deactivateTitle", { name: removing?.display_name ?? "" })}
+            {t("squad.deactivateTitle", {
+              name: localizedPlayerName(
+                removing?.display_name ?? "",
+                removing?.chinese_name,
+                language,
+              ),
+            })}
           </DialogTitle>
           <DialogDescription>{t("squad.deactivateHint")}</DialogDescription>
           {changeStatus.isError && (
