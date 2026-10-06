@@ -2,11 +2,19 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import CompetitionSeason, Match, MatchEvent, Player, PlayerPhoto, SquadMembership
+from ..models import (
+    CompetitionSeason,
+    Match,
+    MatchEvent,
+    MatchGoal,
+    Player,
+    PlayerPhoto,
+    SquadMembership,
+)
 from ..schemas import PlayerResponse
 from .schemas import (
     LeaderboardEntry,
@@ -19,13 +27,34 @@ from .schemas import (
 )
 
 
-def leaderboard_entries(db: Session, season: str, player_field) -> list[LeaderboardEntry]:
+def goal_records():
+    """Combine match-editor events with legacy goals without counting a match twice."""
+    match_has_events = (
+        select(MatchEvent.id)
+        .where(MatchEvent.match_id == MatchGoal.match_id, MatchEvent.event_type == "goal")
+        .exists()
+    )
+    return union_all(
+        select(
+            MatchEvent.match_id.label("match_id"),
+            MatchEvent.player_id.label("scorer_id"),
+            MatchEvent.assist_player_id.label("assist_player_id"),
+        ).where(MatchEvent.event_type == "goal"),
+        select(
+            MatchGoal.match_id.label("match_id"),
+            MatchGoal.scorer_id.label("scorer_id"),
+            MatchGoal.assist_player_id.label("assist_player_id"),
+        ).where(MatchGoal.goal_type != "own_goal", ~match_has_events),
+    ).subquery()
+
+
+def leaderboard_entries(db: Session, season: str, records, player_field) -> list[LeaderboardEntry]:
     """Aggregate one ranked list from the club events entered in the match editor."""
-    total = func.count(MatchEvent.id).label("total")
+    total = func.count().label("total")
     rows = db.execute(
         select(Player, SquadMembership.shirt_number, total)
-        .join(MatchEvent, player_field == Player.id)
-        .join(Match, Match.id == MatchEvent.match_id)
+        .join(records, player_field == Player.id)
+        .join(Match, Match.id == records.c.match_id)
         .join(CompetitionSeason, CompetitionSeason.id == Match.competition_season_id)
         .outerjoin(
             SquadMembership,
@@ -34,7 +63,7 @@ def leaderboard_entries(db: Session, season: str, player_field) -> list[Leaderbo
                 SquadMembership.season_label == season,
             ),
         )
-        .where(CompetitionSeason.season_label == season, MatchEvent.event_type == "goal")
+        .where(CompetitionSeason.season_label == season)
         .group_by(Player.id, SquadMembership.shirt_number)
         .order_by(total.desc(), Player.display_name, Player.id)
     ).all()
@@ -61,10 +90,11 @@ def leaderboard_entries(db: Session, season: str, player_field) -> list[Leaderbo
 
 
 def leaderboards(db: Session, season: str) -> PlayerLeaderboardsResponse:
+    records = goal_records()
     return PlayerLeaderboardsResponse(
         season=season,
-        scorers=leaderboard_entries(db, season, MatchEvent.player_id),
-        assists=leaderboard_entries(db, season, MatchEvent.assist_player_id),
+        scorers=leaderboard_entries(db, season, records, records.c.scorer_id),
+        assists=leaderboard_entries(db, season, records, records.c.assist_player_id),
     )
 
 
@@ -181,16 +211,13 @@ def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
         .where(SquadMembership.player_id == player_id)
         .order_by(SquadMembership.season_label.desc())
     )
-    # Match events are the source of truth used by the match editor and leaderboards.
+    # Match events take precedence, with legacy goal rows retained for unconverted matches.
+    records = goal_records()
     goals = db.scalar(
-        select(func.count())
-        .select_from(MatchEvent)
-        .where(MatchEvent.event_type == "goal", MatchEvent.player_id == player_id)
+        select(func.count()).select_from(records).where(records.c.scorer_id == player_id)
     )
     assists = db.scalar(
-        select(func.count())
-        .select_from(MatchEvent)
-        .where(MatchEvent.event_type == "goal", MatchEvent.assist_player_id == player_id)
+        select(func.count()).select_from(records).where(records.c.assist_player_id == player_id)
     )
     return PlayerProfileResponse(
         id=player.id,

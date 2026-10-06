@@ -18,7 +18,7 @@ function SectionLink({
   return (
     <Link
       to={to}
-      hash={hash}
+      {...(hash ? { hash } : {})}
       className="inline-flex items-center gap-2 border-b border-copper pb-1 text-xs font-bold uppercase tracking-wider text-copper transition-colors hover:text-foreground"
     >
       {children}
