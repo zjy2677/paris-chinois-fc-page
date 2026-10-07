@@ -54,8 +54,33 @@ public football data only and are for regression tests, not a production data se
 - `POST /api/contact-messages`: validated storage, disabled by default. Add spam protection
   before setting CONTACT_ENABLED=true on a public deployment. No public inbox or email delivery.
 
-Authentication routes are enabled. Upload routes remain pending. Playback URLs, object storage, admin workflows, scheduling are subsequent steps. Home, League and match detail pages read the API. League sample data has been removed;
+Authentication and protected upload routes are enabled. Image uploads use Cloudflare R2 when all
+R2 variables are configured; existing database-backed image rows remain readable as a migration
+fallback. Without R2 configuration, local development keeps storing image bytes in PostgreSQL.
+Playback URLs, object storage for uploaded videos, admin workflows and scheduling are subsequent
+steps. Home, League and match detail pages read the API. League sample data has been removed;
 squad records remain illustrative until verified player data is supplied.
+
+### Cloudflare R2 image storage
+
+Create a bucket-scoped R2 API token with Object Read and Write access, then set these Render
+environment variables. Keep the access key and secret on the backend only; they must never be
+prefixed with `VITE_` or committed:
+
+```text
+R2_ENDPOINT_URL=https://ACCOUNT_ID.r2.cloudflarestorage.com
+R2_BUCKET_NAME=your-bucket-name
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+```
+
+The API stores only an object key for new media, player photos and avatars. Public response URLs
+still go through the existing API authorization checks, while legacy rows with `data` continue to
+serve directly from PostgreSQL. Apply the R2 migration before enabling the variables:
+
+```sh
+backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
+```
 
 ## Validation
 

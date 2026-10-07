@@ -47,6 +47,14 @@ repository root: startup and ETL need both `backend/` and `etl/` available.
 | AUTH_TTL_SECONDS | `28800` |
 | CONTACT_ENABLED | `false` |
 | CORS_ORIGINS | JSON array of exact frontend HTTPS origins |
+| R2_ENDPOINT_URL | `https://ACCOUNT_ID.r2.cloudflarestorage.com` |
+| R2_BUCKET_NAME | Cloudflare R2 bucket name |
+| R2_ACCESS_KEY_ID | Bucket-scoped R2 API token access key |
+| R2_SECRET_ACCESS_KEY | Bucket-scoped R2 API token secret |
+
+The four R2 variables are optional for local development. Configure all four together on Render
+to store new media, player photos and profile avatars in Cloudflare R2; leave them unset to use
+the local PostgreSQL byte fallback. Run the R2 Alembic migration before enabling them.
 
 Example CORS_ORIGINS after choosing the actual Vercel project URL:
 

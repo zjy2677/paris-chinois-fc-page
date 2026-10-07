@@ -8,6 +8,7 @@ from ..auth.dependencies import DB, no_store, require_role, throttle, trusted_or
 from ..models import Player, PlayerPhoto
 from ..profile import MAX_AVATAR_BYTES, avatar_type
 from ..schemas import PlayerResponse
+from ..storage import StorageUnavailable, get_storage
 from . import service
 from .schemas import PlayerCreate, PlayerLeaderboardsResponse, PlayerProfileResponse, PlayerUpdate
 
@@ -32,8 +33,14 @@ def player_photo(player_id: UUID, db: DB):
     photo = db.get(PlayerPhoto, player_id)
     if photo is None:
         raise HTTPException(404, "Player photo not found")
+    try:
+        data = get_storage().get(photo.storage_key) if photo.storage_key else photo.data
+    except StorageUnavailable as error:
+        raise HTTPException(503, "Media storage is unavailable") from error
+    if data is None:
+        raise HTTPException(404, "Player photo content is unavailable")
     return Response(
-        content=photo.data,
+        content=data,
         media_type=photo.content_type,
         headers={"Cache-Control": "no-cache"},
     )
@@ -80,11 +87,29 @@ async def upload_player_photo(player_id: UUID, request: Request, db: DB):
     if not data:
         raise HTTPException(400, "Player photo is required")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
+    storage = get_storage()
+    if storage.configured and not storage.enabled:
+        raise HTTPException(503, "R2 storage configuration is incomplete")
     photo = db.scalar(select(PlayerPhoto).where(PlayerPhoto.player_id == player_id))
+    storage_key = f"players/{player_id}" if storage.enabled else None
+    if storage.enabled:
+        try:
+            storage.put(storage_key, data, content_type)
+        except StorageUnavailable as error:
+            raise HTTPException(503, "Media storage is unavailable") from error
     if photo is None:
-        db.add(PlayerPhoto(player_id=player_id, content_type=content_type, data=data))
+        db.add(
+            PlayerPhoto(
+                player_id=player_id,
+                content_type=content_type,
+                data=None if storage.enabled else data,
+                storage_key=storage_key,
+            )
+        )
     else:
-        photo.content_type, photo.data = content_type, data
+        photo.content_type = content_type
+        photo.data = None if storage.enabled else data
+        photo.storage_key = storage_key
     player.photo_url = None
     db.commit()
 

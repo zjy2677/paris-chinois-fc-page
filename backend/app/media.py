@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from .auth.dependencies import DB, current_user, require_role, throttle, trusted_origin
 from .guestbook import COOKIE_NAME, token_hash
 from .models import AlbumPhoto, BlogPost, GuestbookMessage, Match, MediaAsset, PhotoAlbum, User
+from .storage import StorageUnavailable, get_storage
 
 router = APIRouter(prefix="/api/media", tags=["Media"])
 mutation = [Depends(trusted_origin), Depends(throttle)]
@@ -167,11 +168,14 @@ def new_asset(
     **links,
 ) -> MediaAsset:
     content_type, data = image
+    storage = get_storage()
+    if storage.configured and not storage.enabled:
+        raise HTTPException(503, "R2 storage configuration is incomplete")
     asset = MediaAsset(
         uploaded_by=user_id,
         content_type=content_type,
         size_bytes=len(data),
-        data=data,
+        data=None if storage.enabled else data,
         caption=metadata(caption),
         alt_text=metadata(alt_text) or "",
         status=status,
@@ -179,7 +183,25 @@ def new_asset(
     )
     db.add(asset)
     db.flush()
+    if storage.enabled:
+        asset.storage_key = f"media/{asset.id}"
+        try:
+            storage.put(asset.storage_key, data, content_type)
+        except StorageUnavailable as error:
+            db.rollback()
+            raise HTTPException(503, "Media storage is unavailable") from error
     return asset
+
+
+def asset_data(asset: MediaAsset) -> bytes:
+    if asset.storage_key:
+        try:
+            return get_storage().get(asset.storage_key)
+        except StorageUnavailable as error:
+            raise HTTPException(503, "Media storage is unavailable") from error
+    if asset.data is None:
+        raise HTTPException(404, "Photo content is unavailable")
+    return asset.data
 
 
 @router.post(
@@ -345,7 +367,7 @@ def preview_photo(photo_id: UUID, db: DB):
     if asset is None:
         raise HTTPException(404, "Photo not found")
     return Response(
-        content=asset.data,
+        content=asset_data(asset),
         media_type=asset.content_type,
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
@@ -385,7 +407,7 @@ def photo_content(photo_id: UUID, db: DB):
     if not allowed:
         raise HTTPException(404, "Photo not found")
     return Response(
-        content=asset.data,
+        content=asset_data(asset),
         media_type=asset.content_type,
         headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
     )
@@ -398,5 +420,10 @@ def delete_photo(photo_id: UUID, db: DB, user: Annotated[User, Depends(current_u
         raise HTTPException(404, "Photo not found")
     if user.role != "admin" and asset.uploaded_by != user.id:
         raise HTTPException(403, "Not your photo")
+    if asset.storage_key:
+        try:
+            get_storage().delete(asset.storage_key)
+        except StorageUnavailable as error:
+            raise HTTPException(503, "Media storage is unavailable") from error
     db.delete(asset)
     db.commit()

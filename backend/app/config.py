@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     auth_cookie_secure: bool = True
     auth_ttl_seconds: int = 28800
+    r2_endpoint_url: str | None = None
+    r2_bucket_name: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
 
     @field_validator("database_url", "database_migration_url")
     @classmethod

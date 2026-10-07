@@ -243,7 +243,8 @@ class PlayerPhoto(Base):
         ForeignKey("players.id", ondelete="CASCADE"), primary_key=True
     )
     content_type: Mapped[str] = mapped_column(String(100))
-    data: Mapped[bytes] = mapped_column(LargeBinary)
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(512), unique=True)
 
 
 class ContactMessage(Identity, Base):
@@ -307,7 +308,8 @@ class MediaAsset(Identity, Base):
     )
     content_type: Mapped[str] = mapped_column(String(50))
     size_bytes: Mapped[int] = mapped_column(Integer)
-    data: Mapped[bytes] = mapped_column(LargeBinary)
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(512), unique=True)
     caption: Mapped[str | None] = mapped_column(String(300))
     alt_text: Mapped[str] = mapped_column(String(300), default="", server_default="")
     status: Mapped[str] = mapped_column(String(20), default="visible", server_default="visible")
@@ -380,7 +382,8 @@ class UserAvatar(Identity, Base):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
     content_type: Mapped[str] = mapped_column(String(50))
-    data: Mapped[bytes] = mapped_column(LargeBinary)
+    data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(String(512), unique=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

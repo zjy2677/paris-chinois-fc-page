@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from .auth.dependencies import DB, current_user, throttle, trusted_origin
 from .models import User, UserAvatar
+from .storage import StorageUnavailable, get_storage
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
 mutation = [Depends(trusted_origin), Depends(throttle)]
@@ -31,8 +32,14 @@ def get_avatar(db: DB, user: Annotated[User, Depends(current_user)]):
     avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
     if avatar is None:
         raise HTTPException(404, "Profile picture not found")
+    try:
+        data = get_storage().get(avatar.storage_key) if avatar.storage_key else avatar.data
+    except StorageUnavailable as error:
+        raise HTTPException(503, "Media storage is unavailable") from error
+    if data is None:
+        raise HTTPException(404, "Profile picture content is unavailable")
     return Response(
-        content=avatar.data,
+        content=data,
         media_type=avatar.content_type,
         headers={"Cache-Control": "private, max-age=300"},
     )
@@ -56,12 +63,29 @@ async def upload_avatar(request: Request, db: DB, user: Annotated[User, Depends(
     if not data:
         raise HTTPException(400, "Profile picture is required")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
+    storage = get_storage()
+    if storage.configured and not storage.enabled:
+        raise HTTPException(503, "R2 storage configuration is incomplete")
     avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
+    storage_key = f"avatars/{user.id}" if storage.enabled else None
+    if storage.enabled:
+        try:
+            storage.put(storage_key, data, content_type)
+        except StorageUnavailable as error:
+            raise HTTPException(503, "Media storage is unavailable") from error
     if avatar is None:
-        db.add(UserAvatar(user_id=user.id, content_type=content_type, data=data))
+        db.add(
+            UserAvatar(
+                user_id=user.id,
+                content_type=content_type,
+                data=None if storage.enabled else data,
+                storage_key=storage_key,
+            )
+        )
     else:
         avatar.content_type = content_type
-        avatar.data = data
+        avatar.data = None if storage.enabled else data
+        avatar.storage_key = storage_key
     db.commit()
 
 
@@ -69,5 +93,10 @@ async def upload_avatar(request: Request, db: DB, user: Annotated[User, Depends(
 def delete_avatar(db: DB, user: Annotated[User, Depends(current_user)]):
     avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
     if avatar is not None:
+        if avatar.storage_key:
+            try:
+                get_storage().delete(avatar.storage_key)
+            except StorageUnavailable as error:
+                raise HTTPException(503, "Media storage is unavailable") from error
         db.delete(avatar)
         db.commit()
