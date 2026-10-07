@@ -120,9 +120,30 @@ def match_detail(db: Session, match_id: UUID):
         .where(MatchEvent.match_id == match_id)
         .order_by(MatchEvent.sequence, MatchEvent.id)
     ).all()
+    goals = list_goals(db, match_id)
+    if not any(event.event_type == "goal" for event, _, _ in events):
+        # Seed the editor from legacy assignments until goal events become authoritative.
+        # These transient objects only shape the response: GET never writes or migrates data.
+        club_id = next((team.id for team in row[1:3] if team.fla_team_id == 322), None)
+        sequence = max((event.sequence for event, _, _ in events), default=-1) + 1
+        for goal in goals:
+            if goal.team_id != club_id or goal.goal_type == "own_goal":
+                continue
+            event = MatchEvent(
+                id=goal.id,
+                match_id=match_id,
+                event_type="goal",
+                player_id=goal.scorer_id,
+                assist_player_id=goal.assist_player_id,
+                # Legacy minutes have no upper bound; keep unsupported timing in the original row.
+                minute=goal.minute if goal.minute is not None and goal.minute <= 130 else None,
+                sequence=sequence,
+            )
+            events.append((event, goal.scorer, goal.assist_player))
+            sequence += 1
     return {
         **serialize_match(row).model_dump(),
-        "goals": list_goals(db, match_id),
+        "goals": goals,
         "videos": [
             {
                 "id": video.id,

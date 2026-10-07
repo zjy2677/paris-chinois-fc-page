@@ -8,7 +8,16 @@ from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
-from app.models import CompetitionSeason, Match, Player, SquadMembership, Team, User
+from app.models import (
+    CompetitionSeason,
+    Match,
+    MatchEvent,
+    MatchGoal,
+    Player,
+    SquadMembership,
+    Team,
+    User,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -356,3 +365,114 @@ def test_match_video_writes_require_admin_and_valid_youtube_url(goals_client):
         client.post(path, json={"url": "https://youtu.be/FQheFBefpgI"}, headers=ORIGIN).status_code
         == 403
     )
+
+
+@pytest.mark.parametrize("club_index", [0, 1])
+@pytest.mark.parametrize("has_card", [False, True])
+def test_legacy_assignments_survive_match_record_save(goals_client, club_index, has_card):
+    """Opening and saving legacy records preserves rankings, including inactive players."""
+    client, db, matches, teams, players, _ = goals_client
+    match = matches[0]
+    club = db.scalar(select(Team).where(Team.fla_team_id == 322))
+    if club is None:
+        club = teams[club_index]
+        club.fla_team_id = 322
+    if club_index == 0:
+        match.home_team_id, match.home_score = club.id, 4
+    else:
+        match.away_team_id, match.away_score = club.id, 4
+    players[0].active = False
+    legacy = [
+        MatchGoal(
+            match_id=match.id,
+            team_id=club.id,
+            scorer_id=players[0].id,
+            assist_player_id=players[1].id,
+            goal_type=kind,
+            minute=minute,
+            stoppage_minute=2 if minute == 45 else None,
+        )
+        for kind, minute in [("regular", 45), ("penalty", 131)]
+    ]
+    db.add_all(legacy)
+    db.add_all(
+        [
+            MatchGoal(match_id=match.id, team_id=club.id, goal_type="regular"),
+            MatchGoal(
+                match_id=match.id,
+                team_id=club.id,
+                goal_type="own_goal",
+                scorer_id=players[0].id,
+            ),
+            MatchGoal(
+                match_id=match.id,
+                team_id=teams[1 - club_index].id,
+                goal_type="regular",
+            ),
+        ]
+    )
+    if has_card:
+        db.add(
+            MatchEvent(
+                match_id=match.id,
+                event_type="yellow_card",
+                player_id=players[1].id,
+                sequence=0,
+                minute=10,
+            )
+        )
+    db.commit()
+    detail_path = f"/api/matches/{match.id}"
+    record_path = f"/api/admin/matches/{match.id}/record"
+    scorer_path = f"/api/players/{players[0].id}"
+    assistant_path = f"/api/players/{players[1].id}"
+    rankings_path = "/api/player-leaderboards?season=2026/2027"
+    before = client.get(rankings_path).json()
+    assert client.get(scorer_path).json()["goals"] == 2
+    assert client.get(assistant_path).json()["assists"] == 2
+
+    detail = client.get(detail_path)
+    assert detail.status_code == 200, detail.text
+    events = detail.json()["events"]
+    goals = [event for event in events if event["event_type"] == "goal"]
+    assert len(goals) == 3  # Exclude opponent goals and own-goal player credit.
+    assert [event["player_id"] for event in goals] == [
+        str(players[0].id),
+        str(players[0].id),
+        None,
+    ]
+    assert [event["assist_player_id"] for event in goals] == [
+        str(players[1].id),
+        str(players[1].id),
+        None,
+    ]
+    assert goals[0]["player_chinese_name"] == "射手"
+    assert goals[0]["assist_player_chinese_name"] == "助攻球员"
+    assert [event["minute"] for event in goals] == [45, None, None]
+    assert len(events) == 3 + int(has_card)
+    # Reading seeds the response only; original goal metadata stays untouched.
+    assert len(db.scalars(select(MatchEvent).where(MatchEvent.match_id == match.id)).all()) == int(
+        has_card
+    )
+    assert legacy[0].stoppage_minute == 2 and legacy[1].minute == 131
+
+    # Mirror the editor: retain all assignments, pad to the score, save a description.
+    payload_events = [
+        {key: event[key] for key in ("event_type", "player_id", "assist_player_id", "minute")}
+        for event in events
+    ] + [{"event_type": "goal"}]
+    payload = {"description": "Updated report", "events": payload_events}
+    saved = client.put(record_path, json=payload, headers=ORIGIN)
+    assert saved.status_code == 200, saved.text
+    assert client.get(rankings_path).json() == before
+    assert client.get(scorer_path).json()["goals"] == 2
+    assert client.get(assistant_path).json()["assists"] == 2
+    assert len(client.get(detail_path).json()["events"]) == 4 + int(has_card)
+
+    # Once saved, explicit edits to event assignments override the legacy records.
+    first_goal = next(event for event in payload_events if event["event_type"] == "goal")
+    first_goal.update(player_id=None, assist_player_id=None)
+    edited = client.put(record_path, json=payload, headers=ORIGIN)
+    assert edited.status_code == 200, edited.text
+    assert client.get(scorer_path).json()["goals"] == 1
+    assert client.get(assistant_path).json()["assists"] == 1
