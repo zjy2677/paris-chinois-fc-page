@@ -121,17 +121,20 @@ export type MatchDetail = Match & {
   videos: Highlight[];
   description: string | null;
   events: MatchEvent[];
+  photos: import("@/features/gallery/media-api").Photo[];
 };
 type ApiMatchDetail = ApiMatch & {
   videos: Highlight[];
   description: string | null;
   events: MatchEvent[];
+  photos: import("@/features/gallery/media-api").Photo[];
 };
 const toMatchDetail = (data: ApiMatchDetail): MatchDetail => ({
   ...toMatch(data),
   videos: data.videos,
   description: data.description,
   events: data.events,
+  photos: data.photos ?? [],
 });
 export function useMatch(id: string) {
   return useQuery({

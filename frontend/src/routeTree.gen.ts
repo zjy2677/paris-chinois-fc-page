@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as GuestbookRouteImport } from './routes/guestbook'
 import { Route as LeagueRouteImport } from './routes/league'
 import { Route as TeamRouteImport } from './routes/team'
@@ -39,6 +40,11 @@ const BlogRoute = BlogRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuestbookRoute = GuestbookRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/blog': typeof BlogRoute
   '/contact': typeof ContactRoute
+  '/gallery': typeof GalleryRoute
   '/guestbook': typeof GuestbookRoute
   '/league': typeof LeagueRoute
   '/team': typeof TeamRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/blog': typeof BlogRoute
   '/contact': typeof ContactRoute
+  '/gallery': typeof GalleryRoute
   '/guestbook': typeof GuestbookRoute
   '/league': typeof LeagueRoute
   '/team': typeof TeamRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/blog': typeof BlogRoute
   '/contact': typeof ContactRoute
+  '/gallery': typeof GalleryRoute
   '/guestbook': typeof GuestbookRoute
   '/league': typeof LeagueRoute
   '/team': typeof TeamRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/blog'
     | '/contact'
+    | '/gallery'
     | '/guestbook'
     | '/league'
     | '/team'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/blog'
     | '/contact'
+    | '/gallery'
     | '/guestbook'
     | '/league'
     | '/team'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/blog'
     | '/contact'
+    | '/gallery'
     | '/guestbook'
     | '/league'
     | '/team'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   BlogRoute: typeof BlogRoute
   ContactRoute: typeof ContactRoute
+  GalleryRoute: typeof GalleryRoute
   GuestbookRoute: typeof GuestbookRoute
   LeagueRoute: typeof LeagueRoute
   TeamRoute: typeof TeamRoute
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guestbook': {
@@ -260,6 +280,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   BlogRoute: BlogRoute,
   ContactRoute: ContactRoute,
+  GalleryRoute: GalleryRoute,
   GuestbookRoute: GuestbookRoute,
   LeagueRoute: LeagueRoute,
   TeamRoute: TeamRoute,

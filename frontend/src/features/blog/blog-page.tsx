@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { useAccount } from "@/features/auth/auth-api";
 import { PageIntro } from "@/components/layout/page-intro";
@@ -14,6 +14,7 @@ import {
   type BlogStatus,
 } from "./blog-api";
 import { BlogCard } from "./blog-card";
+import { PhotoUploadError, uploadPhotos } from "@/features/gallery/upload-photos";
 
 const emptyForm: BlogInput = { title: "", body: "" };
 
@@ -27,40 +28,54 @@ export function BlogPage() {
   const mutation = useBlogMutation();
   const [form, setForm] = useState<BlogInput>(emptyForm);
   const [editing, setEditing] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const saving = useRef(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const busy = submitting || mutation.isPending;
 
-  function save(event: { preventDefault: () => void }, submit: boolean) {
+  async function save(event: { preventDefault: () => void }, submit: boolean) {
     event.preventDefault();
-    const path = editing ? `/posts/${editing}` : "/posts";
-    mutation.mutate(
-      {
-        path,
+    if (saving.current || mutation.isPending) return;
+    saving.current = true;
+    setSubmitting(true);
+    setPhotoError(null);
+    try {
+      const post = await mutation.mutateAsync({
+        path: editing ? `/posts/${editing}` : "/posts",
         method: editing ? "PATCH" : "POST",
-        body: editing ? form : { ...form, submit },
-      },
-      {
-        onSuccess: (post) => {
-          if (editing && submit) {
-            mutation.mutate(
-              { path: `/posts/${post.id}/submit` },
-              {
-                onSuccess: () => {
-                  setForm(emptyForm);
-                  setEditing(null);
-                },
-              },
-            );
-            return;
-          }
-          setForm(emptyForm);
-          setEditing(null);
-        },
-      },
-    );
+        body: editing ? form : { ...form, submit: false },
+      });
+      // Keep the draft ID if uploading or review submission fails.
+      setEditing(post.id);
+      await uploadPhotos(
+        `/blog/${post.id}/photos`,
+        photoFiles,
+        () => setPhotoFiles((remaining) => remaining.slice(1)),
+        { alt: form.title },
+      );
+      if (photoInput.current) photoInput.current.value = "";
+      if (submit) await mutation.mutateAsync({ path: `/posts/${post.id}/submit` });
+      setForm(emptyForm);
+      setEditing(null);
+    } catch (error) {
+      if (error instanceof PhotoUploadError) setPhotoError(error.fileName);
+      // Other failures are exposed by the mutation state below.
+    } finally {
+      await mine.refetch();
+      saving.current = false;
+      setSubmitting(false);
+    }
   }
 
   function edit(post: BlogPost) {
+    if (saving.current) return;
     setEditing(post.id);
     setForm({ title: post.title, body: post.body });
+    setPhotoFiles([]);
+    setPhotoError(null);
+    if (photoInput.current) photoInput.current.value = "";
     document.querySelector("#blog-editor")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -126,7 +141,7 @@ export function BlogPage() {
               <Field label={t("blog.postTitle")}>
                 <input
                   required
-                  disabled={mutation.isPending}
+                  disabled={busy}
                   minLength={3}
                   maxLength={180}
                   value={form.title}
@@ -134,10 +149,26 @@ export function BlogPage() {
                   className="w-full border border-border bg-card px-4 py-3"
                 />
               </Field>
+              <Field label={t("media.addPhotos")}>
+                <input
+                  ref={photoInput}
+                  disabled={busy}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) =>
+                    setPhotoFiles(Array.from(event.target.files ?? []).slice(0, 20))
+                  }
+                  className="w-full border border-border bg-card px-4 py-3"
+                />
+                <span className="block font-normal text-muted-foreground">
+                  {t("media.photoHelp")}
+                </span>
+              </Field>
               <Field label={t("blog.body")}>
                 <textarea
                   required
-                  disabled={mutation.isPending}
+                  disabled={busy}
                   minLength={20}
                   maxLength={20000}
                   rows={12}
@@ -147,15 +178,12 @@ export function BlogPage() {
                 />
               </Field>
               <div className="flex flex-wrap gap-3">
-                <button
-                  disabled={mutation.isPending}
-                  className="bg-secondary px-5 py-3 text-sm font-bold"
-                >
+                <button disabled={busy} className="bg-secondary px-5 py-3 text-sm font-bold">
                   {editing ? t("blog.saveChanges") : t("blog.saveDraft")}
                 </button>
                 <button
                   type="button"
-                  disabled={mutation.isPending}
+                  disabled={busy}
                   onClick={(event) => save(event, true)}
                   className="bg-primary px-5 py-3 text-sm font-bold"
                 >
@@ -164,10 +192,13 @@ export function BlogPage() {
                 {editing ? (
                   <button
                     type="button"
-                    disabled={mutation.isPending}
+                    disabled={busy}
                     onClick={() => {
                       setEditing(null);
                       setForm(emptyForm);
+                      setPhotoFiles([]);
+                      setPhotoError(null);
+                      if (photoInput.current) photoInput.current.value = "";
                     }}
                     className="px-5 py-3 text-sm underline"
                   >
@@ -176,6 +207,11 @@ export function BlogPage() {
                 ) : null}
               </div>
               {mutation.isError ? <p className="text-copper">{t("blog.saveError")}</p> : null}
+              {photoError ? (
+                <p role="alert" className="text-copper">
+                  {t("media.uploadError")} {photoError}
+                </p>
+              ) : null}
             </form>
           )}
         </section>
@@ -188,6 +224,7 @@ export function BlogPage() {
             onEdit={edit}
             onAction={(post, action) => mutation.mutate({ path: `/posts/${post.id}/${action}` })}
             admin={false}
+            disabled={busy}
           />
         ) : null}
         {account.data?.role === "admin" ? (
@@ -198,6 +235,7 @@ export function BlogPage() {
             onEdit={edit}
             onAction={(post, action) => mutation.mutate({ path: `/posts/${post.id}/${action}` })}
             admin
+            disabled={busy}
           />
         ) : null}
       </div>
@@ -221,6 +259,7 @@ function PostManager({
   onEdit,
   onAction,
   admin,
+  disabled,
 }: {
   title: string;
   posts: BlogPost[];
@@ -228,6 +267,7 @@ function PostManager({
   onEdit: (post: BlogPost) => void;
   onAction: (post: BlogPost, action: "submit" | "publish" | "reject") => void;
   admin: boolean;
+  disabled: boolean;
 }) {
   return (
     <section className="mt-16 border-t border-border pt-12">
@@ -246,20 +286,32 @@ function PostManager({
               <div className="flex gap-4 text-sm">
                 {admin ? (
                   <>
-                    <button onClick={() => onAction(post, "publish")} className="underline">
+                    <button
+                      disabled={disabled}
+                      onClick={() => onAction(post, "publish")}
+                      className="underline"
+                    >
                       {t("blog.publish")}
                     </button>
-                    <button onClick={() => onAction(post, "reject")} className="underline">
+                    <button
+                      disabled={disabled}
+                      onClick={() => onAction(post, "reject")}
+                      className="underline"
+                    >
                       {t("blog.reject")}
                     </button>
                   </>
                 ) : null}
                 {!admin && ["draft", "rejected"].includes(post.status) ? (
                   <>
-                    <button onClick={() => onEdit(post)} className="underline">
+                    <button disabled={disabled} onClick={() => onEdit(post)} className="underline">
                       {t("blog.edit")}
                     </button>
-                    <button onClick={() => onAction(post, "submit")} className="underline">
+                    <button
+                      disabled={disabled}
+                      onClick={() => onAction(post, "submit")}
+                      className="underline"
+                    >
                       {t("blog.submitReview")}
                     </button>
                   </>

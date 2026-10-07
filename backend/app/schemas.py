@@ -69,11 +69,19 @@ class VideoCreate(BaseModel):
     title: str | None = Field(None, max_length=200)
 
 
+class PhotoResponse(ORMResponse):
+    id: UUID
+    url: str
+    caption: str | None
+    alt_text: str
+
+
 class MatchDetail(MatchResponse):
     videos: list[VideoResponse]
     description: str | None
     events: list[MatchEventResponse]
     goals: list[GoalResponse]
+    photos: list[PhotoResponse]
 
 
 class MatchEventInput(BaseModel):

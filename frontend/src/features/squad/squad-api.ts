@@ -34,6 +34,21 @@ export type PlayerProfile = Pick<
   goals: number;
   assists: number;
 };
+export type LeaderboardEntry = {
+  rank: number;
+  player_id: string;
+  display_name: string;
+  chinese_name: string | null;
+  photo_url: string | null;
+  has_uploaded_photo: boolean;
+  shirt_number: number | null;
+  total: number;
+};
+export type PlayerLeaderboards = {
+  season: string;
+  scorers: LeaderboardEntry[];
+  assists: LeaderboardEntry[];
+};
 
 export function usePlayerProfile(id: string) {
   return useQuery({
@@ -43,6 +58,21 @@ export function usePlayerProfile(id: string) {
       playerRequest<PlayerProfile>(`/players/${encodeURIComponent(id)}`, "GET", undefined, signal),
     retry: (count, error) =>
       !(error instanceof PlayerApiError && [404, 422].includes(error.status)) && count < 1,
+  });
+}
+
+export function usePlayerLeaderboards() {
+  return useQuery({
+    queryKey: ["players", "leaderboards", SQUAD_SEASON],
+    enabled: typeof window !== "undefined",
+    queryFn: ({ signal }) =>
+      playerRequest<PlayerLeaderboards>(
+        `/player-leaderboards?season=${encodeURIComponent(SQUAD_SEASON)}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    retry: 1,
   });
 }
 /** Send a credentialed player API request; return JSON or undefined for 204, and throw on HTTP errors. */

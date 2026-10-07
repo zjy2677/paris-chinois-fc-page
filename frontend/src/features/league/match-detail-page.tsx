@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
+import { useRef, useState } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import { PageIntro } from "@/components/layout/page-intro";
@@ -11,11 +12,18 @@ import { HighlightPlayer } from "./highlight-player";
 import { useAccount } from "@/features/auth/auth-api";
 import { MatchRecordEditor } from "./match-record-editor";
 import { HighlightEditor } from "./highlight-editor";
+import { PhotoGrid } from "@/features/gallery/photo-grid";
+import { PhotoUploadError, uploadPhotos } from "@/features/gallery/upload-photos";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t, language } = useI18n();
   const query = useMatch(id);
   const account = useAccount();
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPending, setPhotoPending] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const uploading = useRef(false);
   if (query.isPending || query.isError) {
     const missing = query.error instanceof ApiError && [404, 422].includes(query.error.status);
     return (
@@ -58,34 +66,41 @@ export function MatchDetailPage({ id }: { id: string }) {
             </h2>
             <ul className="mt-5 divide-y divide-border border-y border-border">
               {match.events.map((event) => (
-                <li key={event.id} className="flex items-start gap-3 py-3 sm:items-center sm:gap-4">
-                  <span className="w-12 shrink-0 tabular-nums text-muted-foreground">
+                <li
+                  key={event.id}
+                  className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-4 sm:grid-cols-[3rem_7.5rem_minmax(0,1fr)] sm:items-center sm:gap-x-4"
+                >
+                  <span className="tabular-nums text-muted-foreground">
                     {event.minute === null ? "—" : `${event.minute}'`}
                   </span>
-                  <span className="w-6 shrink-0 text-center" aria-hidden="true">
-                    {event.event_type === "goal"
-                      ? "⚽"
-                      : event.event_type === "yellow_card"
-                        ? "🟨"
-                        : "🟥"}
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="font-semibold">
-                      {event.event_type !== "goal" && (
-                        <span
-                          className={
-                            event.event_type === "yellow_card"
-                              ? "mr-2 text-yellow-500"
-                              : "mr-2 text-red-500"
-                          }
-                        >
-                          {t(
-                            event.event_type === "yellow_card"
-                              ? "match.yellowCard"
-                              : "match.redCard",
-                          )}
-                        </span>
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <span aria-hidden="true">
+                      {event.event_type === "goal"
+                        ? "⚽"
+                        : event.event_type === "yellow_card"
+                          ? "🟨"
+                          : "🟥"}
+                    </span>
+                    <span
+                      className={
+                        event.event_type === "goal"
+                          ? "text-foreground"
+                          : event.event_type === "yellow_card"
+                            ? "text-yellow-500"
+                            : "text-red-500"
+                      }
+                    >
+                      {t(
+                        event.event_type === "goal"
+                          ? "match.goal"
+                          : event.event_type === "yellow_card"
+                            ? "match.yellowCard"
+                            : "match.redCard",
                       )}
+                    </span>
+                  </span>
+                  <div className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 sm:col-start-auto">
+                    <span className="font-semibold">
                       {localizedPlayerName(
                         event.player_name ?? t("match.unknownScorer"),
                         event.player_chinese_name,
@@ -122,6 +137,63 @@ export function MatchDetailPage({ id }: { id: string }) {
             </p>
           </section>
         )}
+        <section className="mt-10" aria-labelledby="match-photos">
+          <h2 id="match-photos" className="font-display text-4xl font-bold uppercase">
+            {t("media.photos")}
+          </h2>
+          {account.data?.role === "admin" ? (
+            <div className="mt-5 flex flex-wrap items-center gap-3 border border-border bg-card p-4">
+              <input
+                ref={photoInput}
+                disabled={photoPending}
+                multiple
+                accept="image/png,image/jpeg,image/webp"
+                type="file"
+                onChange={(e) => setPhotoFiles(Array.from(e.target.files ?? []).slice(0, 20))}
+              />
+              <button
+                type="button"
+                disabled={!photoFiles.length || photoPending}
+                className="bg-primary px-4 py-2 text-sm font-bold disabled:opacity-50"
+                onClick={async () => {
+                  if (uploading.current) return;
+                  uploading.current = true;
+                  setPhotoPending(true);
+                  setPhotoError(null);
+                  try {
+                    await uploadPhotos(
+                      `/matches/${match.id}/photos`,
+                      photoFiles,
+                      () => setPhotoFiles((remaining) => remaining.slice(1)),
+                      {
+                        alt: `${match.home.name} — ${match.away.name}`,
+                      },
+                    );
+                    if (photoInput.current) photoInput.current.value = "";
+                  } catch (error) {
+                    if (error instanceof PhotoUploadError) setPhotoError(error.fileName);
+                  } finally {
+                    await query.refetch();
+                    uploading.current = false;
+                    setPhotoPending(false);
+                  }
+                }}
+              >
+                {photoPending ? t("media.uploading") : t("media.addPhotos")}
+              </button>
+              {photoError ? (
+                <p role="alert" className="w-full text-copper">
+                  {t("media.uploadError")} {photoError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {match.photos.length ? (
+            <div className="mt-6">
+              <PhotoGrid photos={match.photos} />
+            </div>
+          ) : null}
+        </section>
         <section className="mt-10" aria-labelledby="match-highlights">
           <h2 id="match-highlights" className="font-display text-4xl font-bold uppercase">
             {t("match.highlights")}

@@ -10,6 +10,7 @@ import { localizedPlayerName } from "@/lib/player-name";
 import { useAccount } from "@/features/auth/auth-api";
 import { PlayerCard } from "./player-card";
 import { PlayerEditor } from "./player-editor";
+import { PlayerLeaderboards } from "./player-leaderboards";
 import { PositionFilter, type Position } from "./position-filter";
 import { positions, playerRequest, SQUAD_SEASON, useSquad } from "./squad-api";
 
@@ -65,6 +66,18 @@ export function SquadPage() {
             </label>
           </div>
         )}
+        <section id="player-leaderboards" className="mb-16 scroll-mt-24">
+          <div className="mb-7 flex items-end justify-between gap-5">
+            <div>
+              <p className="eyebrow text-copper">{t("leaderboards.eyebrow")}</p>
+              <h2 className="mt-3 font-display text-4xl font-bold uppercase md:text-5xl">
+                {t("leaderboards.title")}
+              </h2>
+            </div>
+            <span className="text-sm text-muted-foreground">{SQUAD_SEASON}</span>
+          </div>
+          <PlayerLeaderboards />
+        </section>
         <PositionFilter value={position} onChange={setPosition} />
         {squad.isPending ? (
           <p role="status" className="py-12 text-muted-foreground">

@@ -12,6 +12,7 @@ dependencies = [
  "pydantic-settings>=2.6,<3", "httpx>=0.28,<1",
  "PyJWT>=2.10,<3", "argon2-cffi>=23,<26",
  "beautifulsoup4>=4.12,<5", "email-validator>=2,<3",
+ "Pillow>=12.3,<13",
 ]
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.9,<1"]

@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from .auth.dependencies import DB, require_role, throttle, trusted_origin
 from .config import get_settings
-from .models import GuestbookMessage, User
+from .models import GuestbookMessage, MediaAsset, User
 
 router = APIRouter(prefix="/api/guestbook", tags=["Guestbook"])
 mutation = [Depends(trusted_origin), Depends(throttle)]
@@ -54,6 +54,7 @@ class GuestbookInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     nickname: str = Field(min_length=1, max_length=30)
     body: str = Field(min_length=2, max_length=300)
+    has_photo: bool = False
 
 
 class GuestbookResponse(BaseModel):
@@ -61,8 +62,41 @@ class GuestbookResponse(BaseModel):
     id: UUID
     nickname: str
     body: str
-    status: Literal["visible", "hidden"]
+    status: Literal["visible", "pending", "hidden"]
     created_at: datetime
+    photo: dict | None = None
+
+
+def message_response(
+    db: DB, message: GuestbookMessage, include_unpublished_photo: bool = False
+) -> GuestbookResponse:
+    photo = db.scalar(
+        select(MediaAsset)
+        .where(MediaAsset.guestbook_message_id == message.id)
+        .order_by(MediaAsset.created_at)
+    )
+    response_photo = (
+        {
+            "id": str(photo.id),
+            "url": (
+                photo.url if photo.status == "visible" else f"/api/media/photos/{photo.id}/preview"
+            ),
+            "caption": photo.caption,
+            "alt_text": photo.alt_text,
+        }
+        if photo is not None and (photo.status == "visible" or include_unpublished_photo)
+        else None
+    )
+    return GuestbookResponse.model_validate(
+        {
+            "id": message.id,
+            "nickname": message.nickname,
+            "body": message.body,
+            "status": message.status,
+            "created_at": message.created_at,
+            "photo": response_photo,
+        }
+    )
 
 
 def token_hash(token: str) -> str:
@@ -71,16 +105,18 @@ def token_hash(token: str) -> str:
 
 def visitor(request: Request, response: Response) -> str:
     token = request.cookies.get(COOKIE_NAME)
-    if token:
-        return token_hash(token)
-    token = secrets.token_urlsafe(32)
+    if token is None:
+        token = secrets.token_urlsafe(32)
+    else:
+        # Migrate the old, narrower cookie so media upload requests receive it.
+        response.delete_cookie(COOKIE_NAME, path="/api/guestbook")
     response.set_cookie(
         COOKIE_NAME,
         token,
         httponly=True,
         secure=get_settings().auth_cookie_secure,
         samesite="lax",
-        path="/api/guestbook",
+        path="/api",
         max_age=COOKIE_MAX_AGE,
     )
     return token_hash(token)
@@ -88,7 +124,7 @@ def visitor(request: Request, response: Response) -> str:
 
 @router.get("/messages", response_model=list[GuestbookResponse])
 def visible_messages(db: DB):
-    return list(
+    rows = list(
         db.scalars(
             select(GuestbookMessage)
             .where(GuestbookMessage.status == "visible")
@@ -96,6 +132,7 @@ def visible_messages(db: DB):
             .limit(60)
         ).all()
     )
+    return [message_response(db, message) for message in rows]
 
 
 @router.post("/messages", response_model=GuestbookResponse, status_code=201, dependencies=mutation)
@@ -111,21 +148,25 @@ def create_message(body: GuestbookInput, request: Request, response: Response, d
     if last_created and datetime.now(timezone.utc) - last_created < POST_COOLDOWN:
         raise HTTPException(429, "Please wait before posting again", headers={"Retry-After": "30"})
     message = GuestbookMessage(
-        nickname=body.nickname, body=body.body, visitor_hash=fingerprint, status="visible"
+        nickname=body.nickname,
+        body=body.body,
+        visitor_hash=fingerprint,
+        status="pending" if body.has_photo else "visible",
     )
     db.add(message)
     db.commit()
     db.refresh(message)
-    return message
+    return message_response(db, message)
 
 
 @router.get("/moderation", response_model=list[GuestbookResponse])
 def moderation_messages(db: DB, _: Annotated[User, Depends(require_role("admin"))]):
-    return list(
+    rows = list(
         db.scalars(
             select(GuestbookMessage).order_by(GuestbookMessage.created_at.desc()).limit(100)
         ).all()
     )
+    return [message_response(db, message, include_unpublished_photo=True) for message in rows]
 
 
 def set_status(message_id: UUID, status: Literal["visible", "hidden"], db: DB):
@@ -133,9 +174,12 @@ def set_status(message_id: UUID, status: Literal["visible", "hidden"], db: DB):
     if message is None:
         raise HTTPException(404, "Message not found")
     message.status = status
+    photo = db.scalar(select(MediaAsset).where(MediaAsset.guestbook_message_id == message.id))
+    if photo is not None:
+        photo.status = "visible" if status == "visible" else "hidden"
     db.commit()
     db.refresh(message)
-    return message
+    return message_response(db, message)
 
 
 @router.post("/messages/{message_id}/hide", response_model=GuestbookResponse, dependencies=mutation)

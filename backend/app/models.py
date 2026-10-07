@@ -284,10 +284,65 @@ class BlogPost(Identity, Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PhotoAlbum(Identity, Base):
+    __tablename__ = "photo_albums"
+    title: Mapped[str] = mapped_column(String(180))
+    description: Mapped[str | None] = mapped_column(Text)
+    event_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MediaAsset(Identity, Base):
+    __tablename__ = "media_assets"
+    __table_args__ = (
+        CheckConstraint("status IN ('visible','pending','hidden')", name="media_asset_status"),
+        CheckConstraint("size_bytes > 0", name="media_asset_size_positive"),
+        Index("ix_media_match", "match_id", "position"),
+        Index("ix_media_blog", "blog_post_id", "position"),
+        Index("ix_media_guestbook", "guestbook_message_id", "position"),
+    )
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    content_type: Mapped[str] = mapped_column(String(50))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    caption: Mapped[str | None] = mapped_column(String(300))
+    alt_text: Mapped[str] = mapped_column(String(300), default="", server_default="")
+    status: Mapped[str] = mapped_column(String(20), default="visible", server_default="visible")
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    match_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
+    blog_post_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("blog_posts.id", ondelete="CASCADE")
+    )
+    guestbook_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("guestbook_messages.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def url(self) -> str:
+        return f"/api/media/photos/{self.id}/content"
+
+
+class AlbumPhoto(Base):
+    __tablename__ = "album_photos"
+    album_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("photo_albums.id", ondelete="CASCADE"), primary_key=True
+    )
+    media_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("media_assets.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
 class GuestbookMessage(Identity, Base):
     __tablename__ = "guestbook_messages"
     __table_args__ = (
-        CheckConstraint("status IN ('visible','hidden')", name="guestbook_message_status"),
+        CheckConstraint(
+            "status IN ('visible','pending','hidden')", name="guestbook_message_status"
+        ),
         Index("ix_guestbook_status_created", "status", "created_at"),
     )
 

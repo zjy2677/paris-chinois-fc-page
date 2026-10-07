@@ -93,3 +93,20 @@ class PlayerProfileResponse(BaseModel):
     squads: list[SquadSeasonResponse]
     goals: int
     assists: int
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    player_id: UUID
+    display_name: str
+    chinese_name: str | None
+    photo_url: str | None
+    has_uploaded_photo: bool
+    shirt_number: int | None
+    total: int
+
+
+class PlayerLeaderboardsResponse(BaseModel):
+    season: Season
+    scorers: list[LeaderboardEntry]
+    assists: list[LeaderboardEntry]

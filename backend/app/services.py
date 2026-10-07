@@ -11,6 +11,7 @@ from .models import (
     MatchEvent,
     MatchReport,
     MatchVideo,
+    MediaAsset,
     Player,
     PlayerPhoto,
     SquadMembership,
@@ -106,6 +107,11 @@ def match_detail(db: Session, match_id: UUID):
         .order_by(MatchVideo.created_at, MatchVideo.id)
     ).all()
     report = db.scalar(select(MatchReport).where(MatchReport.match_id == match_id))
+    photos = db.scalars(
+        select(MediaAsset)
+        .where(MediaAsset.match_id == match_id, MediaAsset.status == "visible")
+        .order_by(MediaAsset.position, MediaAsset.created_at)
+    ).all()
     scorer, assistant = aliased(Player), aliased(Player)
     events = db.execute(
         select(MatchEvent, scorer, assistant)
@@ -114,9 +120,30 @@ def match_detail(db: Session, match_id: UUID):
         .where(MatchEvent.match_id == match_id)
         .order_by(MatchEvent.sequence, MatchEvent.id)
     ).all()
+    goals = list_goals(db, match_id)
+    if not any(event.event_type == "goal" for event, _, _ in events):
+        # Seed the editor from legacy assignments until goal events become authoritative.
+        # These transient objects only shape the response: GET never writes or migrates data.
+        club_id = next((team.id for team in row[1:3] if team.fla_team_id == 322), None)
+        sequence = max((event.sequence for event, _, _ in events), default=-1) + 1
+        for goal in goals:
+            if goal.team_id != club_id or goal.goal_type == "own_goal":
+                continue
+            event = MatchEvent(
+                id=goal.id,
+                match_id=match_id,
+                event_type="goal",
+                player_id=goal.scorer_id,
+                assist_player_id=goal.assist_player_id,
+                # Legacy minutes have no upper bound; keep unsupported timing in the original row.
+                minute=goal.minute if goal.minute is not None and goal.minute <= 130 else None,
+                sequence=sequence,
+            )
+            events.append((event, goal.scorer, goal.assist_player))
+            sequence += 1
     return {
         **serialize_match(row).model_dump(),
-        "goals": list_goals(db, match_id),
+        "goals": goals,
         "videos": [
             {
                 "id": video.id,
@@ -127,6 +154,7 @@ def match_detail(db: Session, match_id: UUID):
             for video in videos
         ],
         "description": report.description if report else None,
+        "photos": photos,
         "events": [
             {
                 "id": event.id,

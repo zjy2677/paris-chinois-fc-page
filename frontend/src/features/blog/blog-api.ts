@@ -9,6 +9,7 @@ export type BlogPost = {
   created_at: string;
   updated_at: string;
   published_at: string | null;
+  photos: import("@/features/gallery/media-api").Photo[];
 };
 export type BlogInput = Pick<BlogPost, "title" | "body">;
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { PageIntro } from "@/components/layout/page-intro";
 import { useAccount } from "@/features/auth/auth-api";
 import { assets } from "@/config/assets";
@@ -9,6 +9,7 @@ import {
   useGuestbookMutation,
 } from "./guestbook-api";
 import { MessageCard } from "./message-card";
+import { uploadPhoto } from "@/features/gallery/media-api";
 
 export function GuestbookPage() {
   const { t } = useI18n();
@@ -20,23 +21,60 @@ export function GuestbookPage() {
   const [nickname, setNickname] = useState("");
   const [body, setBody] = useState("");
   const [published, setPublished] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [awaitingReview, setAwaitingReview] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
+  const [retryMessageId, setRetryMessageId] = useState<string | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) return;
     setPublished(false);
-    mutation.mutate(
-      { path: "/messages", body: { nickname, body } },
-      {
-        onSuccess: () => {
-          setNickname("");
-          setBody("");
-          setPublished(true);
-        },
-      },
-    );
+    setAwaitingReview(false);
+    setPhotoError(false);
+    setSubmitting(true);
+    mutation.reset();
+    try {
+      let messageId = retryMessageId;
+      if (!messageId) {
+        const message = await mutation.mutateAsync({
+          path: "/messages",
+          body: { nickname, body, has_photo: Boolean(photo) },
+        });
+        messageId = message.id;
+        if (photo) setRetryMessageId(message.id);
+      }
+      if (photo) {
+        try {
+          await uploadPhoto(`/guestbook/${messageId}/photo`, photo, {
+            alt: `${nickname} guestbook photo`,
+          });
+        } catch {
+          setPhotoError(true);
+          return;
+        }
+        setAwaitingReview(true);
+      } else {
+        setPublished(true);
+      }
+      setNickname("");
+      setBody("");
+      setPhoto(null);
+      setRetryMessageId(null);
+      if (photoInput.current) photoInput.current.value = "";
+      await messages.refetch();
+      if (account.data?.role === "admin") await moderation.refetch();
+    } catch {
+      // The mutation state renders the localized message creation error.
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const hidden = moderation.data?.filter((message) => message.status === "hidden") ?? [];
+  const pending = moderation.data?.filter((message) => message.status === "pending") ?? [];
 
   return (
     <>
@@ -69,6 +107,19 @@ export function GuestbookPage() {
               />
             </label>
             <label className="block space-y-2 text-sm font-bold">
+              <span>{t("media.addPhotos")}</span>
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+                className="w-full border border-border bg-background px-4 py-3"
+              />
+              <span className="block font-normal text-muted-foreground">
+                {t("media.photoHelp")}
+              </span>
+            </label>
+            <label className="block space-y-2 text-sm font-bold">
               <span>{t("guestbook.message")}</span>
               <textarea
                 required
@@ -85,15 +136,29 @@ export function GuestbookPage() {
                 {body.length} / 300
               </span>
               <button
-                disabled={mutation.isPending}
+                disabled={submitting}
                 className="bg-primary px-6 py-3 text-sm font-bold disabled:opacity-50"
               >
-                {mutation.isPending ? t("guestbook.posting") : t("guestbook.post")}
+                {submitting
+                  ? t("guestbook.posting")
+                  : retryMessageId
+                    ? t("media.retryUpload")
+                    : t("guestbook.post")}
               </button>
             </div>
-            {published ? <p className="text-sm text-copper">{t("guestbook.success")}</p> : null}
+            {published && !awaitingReview ? (
+              <p className="text-sm text-copper">{t("guestbook.success")}</p>
+            ) : null}
+            {awaitingReview ? (
+              <p className="text-sm text-copper">{t("media.pendingModeration")}</p>
+            ) : null}
             {mutation.isError ? (
               <p className="text-sm text-copper">{t("guestbook.error")}</p>
+            ) : null}
+            {photoError ? (
+              <p role="alert" className="text-sm text-copper">
+                {t("media.uploadRetry")}
+              </p>
             ) : null}
           </form>
         </section>
@@ -132,6 +197,28 @@ export function GuestbookPage() {
             ))}
           </div>
         </section>
+
+        {account.data?.role === "admin" && pending.length > 0 ? (
+          <section className="mt-16 border-t border-border pt-12">
+            <h2 className="font-display text-4xl font-bold uppercase">
+              {t("guestbook.pendingMessages")}
+            </h2>
+            <div className="mt-8 columns-1 gap-5 md:columns-2 xl:columns-3">
+              {pending.map((message, index) => (
+                <MessageCard
+                  key={message.id}
+                  message={message}
+                  index={index}
+                  adminPending={moderate.isPending}
+                  adminAction={() => moderate.mutate({ path: `/messages/${message.id}/restore` })}
+                  secondaryAdminAction={() =>
+                    moderate.mutate({ path: `/messages/${message.id}/hide` })
+                  }
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {account.data?.role === "admin" && hidden.length > 0 ? (
           <section className="mt-16 border-t border-border pt-12">
