@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -7,14 +8,24 @@ from app.auth.service import COOKIE_NAME, issue_session
 from app.config import get_settings
 from app.database import get_db
 from app.main import app
-from app.models import Player, SquadMembership, User
+from app.models import (
+    CompetitionSeason,
+    Match,
+    MatchEvent,
+    Player,
+    PlayerPhoto,
+    SquadMembership,
+    Team,
+    User,
+)
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 BODY = {
     "display_name": "New Player",
+    "chinese_name": "新球员",
     "photo_url": "https://example.com/photo.jpg",
     "shirt_number": 9,
     "position": "Forwards",
@@ -107,6 +118,10 @@ def test_admin_required(player_client, role, status):
     "change",
     [
         {"display_name": " "},
+        {"display_name": None},
+        {"chinese_name": " "},
+        {"chinese_name": None},
+        {"chinese_name": "名" * 151},
         {"photo_url": "javascript:alert(1)"},
         {"photo_url": "http://example.com/a.jpg"},
         {"photo_url": "https://user:pass@example.com/a.jpg"},
@@ -199,6 +214,134 @@ def test_description_lifecycle_and_public_profile(player_client):
     assert client.get("/api/players/not-a-uuid").status_code == 422
 
 
+def test_leaderboards_and_profiles_use_recorded_match_events(player_client):
+    client, db, _ = player_client
+    players = [
+        Player(display_name="Alpha", chinese_name="甲"),
+        Player(display_name="Bravo", chinese_name="乙"),
+        Player(display_name="Charlie", chinese_name="丙", active=False),
+    ]
+    db.add_all(players)
+    db.flush()
+    db.add_all(
+        SquadMembership(
+            player_id=player.id,
+            season_label="2026/2027",
+            shirt_number=number,
+            position="Forwards",
+        )
+        for player, number in zip(players, (9, 10, 11), strict=True)
+    )
+    club = Team(fla_team_id=322, name="Paris Chinois", short_name="PCFC")
+    opponent = Team(fla_team_id=None, name="Opponent", short_name=None)
+    competition = CompetitionSeason(
+        fla_championship_id=1,
+        fla_cup_id=None,
+        fla_season_id=1,
+        competition_name="League",
+        division="A",
+        season_label="2026/2027",
+    )
+    db.add_all([club, opponent, competition])
+    db.flush()
+    match = Match(
+        competition_season_id=competition.id,
+        source_key="leaderboard-test",
+        home_team_id=club.id,
+        away_team_id=opponent.id,
+        venue_id=None,
+        matchday=1,
+        leg="",
+        kickoff_at=datetime.now(timezone.utc),
+        status="final",
+        home_score=4,
+        away_score=0,
+        source_url="",
+        last_synced_at=datetime.now(timezone.utc),
+        source_type="manual",
+    )
+    db.add(match)
+    db.flush()
+    db.add_all(
+        [
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[0].id,
+                assist_player_id=players[1].id,
+                minute=10,
+                sequence=0,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[0].id,
+                assist_player_id=players[1].id,
+                minute=20,
+                sequence=1,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[1].id,
+                assist_player_id=players[0].id,
+                minute=30,
+                sequence=2,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="goal",
+                player_id=players[2].id,
+                assist_player_id=None,
+                minute=40,
+                sequence=3,
+            ),
+            MatchEvent(
+                match_id=match.id,
+                event_type="yellow_card",
+                player_id=players[0].id,
+                assist_player_id=None,
+                minute=50,
+                sequence=4,
+            ),
+        ]
+    )
+    db.commit()
+
+    db.add(PlayerPhoto(player_id=players[0].id, content_type="image/png", data=b"photo"))
+    db.commit()
+    statements = []
+
+    def record_statement(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(db.bind, "before_cursor_execute", record_statement)
+    try:
+        response = client.get("/api/player-leaderboards?season=2026/2027")
+    finally:
+        event.remove(db.bind, "before_cursor_execute", record_statement)
+    # Each ranking checks photo existence within its aggregate SELECT.
+    assert len([sql for sql in statements if "player_photos" in sql]) == 2
+    assert response.status_code == 200
+    data = response.json()
+    assert [(row["display_name"], row["rank"], row["total"]) for row in data["scorers"]] == [
+        ("Alpha", 1, 2),
+        ("Bravo", 2, 1),
+        ("Charlie", 2, 1),
+    ]
+    assert [(row["display_name"], row["rank"], row["total"]) for row in data["assists"]] == [
+        ("Bravo", 1, 2),
+        ("Alpha", 2, 1),
+    ]
+    assert data["scorers"][2]["shirt_number"] == 11
+    assert [row["has_uploaded_photo"] for row in data["scorers"]] == [True, False, False]
+    assert [row["has_uploaded_photo"] for row in data["assists"]] == [False, True]
+    profile = client.get(f"/api/players/{players[0].id}").json()
+    assert profile["goals"] == 2
+    assert profile["assists"] == 1
+    assert client.get("/api/player-leaderboards?season=invalid").status_code == 422
+
+
 def test_alternate_positions_and_uploaded_photo(player_client):
     client, _, _ = player_client
     created = client.post(
@@ -229,3 +372,65 @@ def test_position_validation():
         PlayerCreate.model_validate(BODY | {"alternate_positions": ["Forwards"]})
     with pytest.raises(ValidationError):
         PlayerCreate.model_validate(BODY | {"alternate_positions": ["Defenders", "Defenders"]})
+
+
+@pytest.mark.parametrize("name", ["display_name", "chinese_name"])
+def test_both_names_required_on_create(player_client, name):
+    client, _, _ = player_client
+    payload = {key: value for key, value in BODY.items() if key != name}
+    assert client.post("/api/players", json=payload, headers=ORIGIN).status_code == 422
+    assert client.get("/api/players").json() == []
+
+
+def test_bilingual_names_create_update_and_public_responses(player_client):
+    client, db, _ = player_client
+    names = {"display_name": "  Zhang Wei  ", "chinese_name": "  张伟  "}
+    created = client.post("/api/players", json=BODY | names, headers=ORIGIN)
+    assert created.status_code == 201, created.text
+    player_id = created.json()["id"]
+    path = f"/api/players/{player_id}"
+    expected = {"display_name": "Zhang Wei", "chinese_name": "张伟"}
+    for key, value in expected.items():
+        assert created.json()[key] == value
+        assert client.get("/api/admin/players").json()[0][key] == value
+    edited = client.patch(
+        path + "?season=2026/2027", json={"chinese_name": "  张玮  "}, headers=ORIGIN
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["display_name"] == "Zhang Wei"
+    assert edited.json()["chinese_name"] == "张玮"
+    assert (
+        db.scalar(select(Player).where(Player.display_name == "Zhang Wei")).chinese_name == "张玮"
+    )
+    client.cookies.clear()
+    for data in [client.get(path).json(), client.get("/api/players").json()[0]]:
+        assert data["display_name"] == "Zhang Wei"
+        assert data["chinese_name"] == "张玮"
+
+
+def test_legacy_player_can_be_read_and_given_a_chinese_name(player_client):
+    client, db, _ = player_client
+    legacy = Player(display_name="Existing Player")
+    db.add(legacy)
+    db.flush()
+    db.add(SquadMembership(player_id=legacy.id, season_label="2026/2027", position="Defenders"))
+    db.commit()
+    path = f"/api/players/{legacy.id}"
+    assert client.get(path).json()["chinese_name"] is None
+    assert client.get("/api/players").json()[0]["display_name"] == "Existing Player"
+    edit = client.patch(
+        path + "?season=2026/2027",
+        json={"description": "Captain", "position": "Midfielders"},
+        headers=ORIGIN,
+    )
+    assert edit.status_code == 200, edit.text
+    assert edit.json()["description"] == "Captain"
+    assert edit.json()["position"] == "Midfielders"
+    assert edit.json()["chinese_name"] is None
+    # Partial status changes remain possible before a legacy player's name is filled in.
+    edit = client.patch(path + "?season=2026/2027", json={"active": False}, headers=ORIGIN)
+    assert edit.status_code == 200 and edit.json()["chinese_name"] is None
+    edit = client.patch(path + "?season=2026/2027", json={"chinese_name": "老队员"}, headers=ORIGIN)
+    assert edit.status_code == 200
+    assert edit.json()["display_name"] == "Existing Player"
+    assert client.get(path).json()["chinese_name"] == "老队员"

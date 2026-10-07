@@ -16,8 +16,41 @@ if (process.env["VERCEL"] && process.env["VITE_API_BASE_URL"]) {
 
 export default defineConfig({
   // Nitro emits this as a Vercel CDN rewrite, before the SSR catch-all route.
-  // Keep authentication cookies first-party; never cache authenticated responses.
+  // Public league reads can be slightly stale while Render wakes up. All account,
+  // moderation and mutation routes retain no-store through the fallback rule.
   routeRules: apiOrigin
-    ? { "/api/**": { proxy: `${apiOrigin}/api/**`, headers: { "Cache-Control": "no-store" } } }
+    ? {
+        "/api/**": {
+          proxy: `${apiOrigin}/api/**`,
+          headers: {
+            "Cache-Control": "no-store",
+            "x-vercel-enable-rewrite-caching": "0",
+          },
+        },
+        "/api/matches": {
+          proxy: `${apiOrigin}/api/matches`,
+          headers: {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "x-vercel-enable-rewrite-caching": "1",
+          },
+        },
+        "/api/matches/**": {
+          proxy: `${apiOrigin}/api/matches/**`,
+          headers: {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "x-vercel-enable-rewrite-caching": "1",
+          },
+        },
+        "/api/standings": {
+          proxy: `${apiOrigin}/api/standings`,
+          headers: {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "CDN-Cache-Control": "public, max-age=600, stale-while-revalidate=86400",
+            "x-vercel-enable-rewrite-caching": "1",
+          },
+        },
+      }
     : {},
 });

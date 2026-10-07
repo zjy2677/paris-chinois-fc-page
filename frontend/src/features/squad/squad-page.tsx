@@ -6,15 +6,17 @@ import { PageIntro } from "@/components/layout/page-intro";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { Player } from "@/types/football";
+import { localizedPlayerName } from "@/lib/player-name";
 import { useAccount } from "@/features/auth/auth-api";
 import { PlayerCard } from "./player-card";
 import { PlayerEditor } from "./player-editor";
+import { PlayerLeaderboards } from "./player-leaderboards";
 import { PositionFilter, type Position } from "./position-filter";
 import { positions, playerRequest, SQUAD_SEASON, useSquad } from "./squad-api";
 
 /** Render the filtered season squad and player management controls for administrators. */
 export function SquadPage() {
-  const { t, c } = useI18n();
+  const { t, c, language } = useI18n();
   const account = useAccount();
   const admin = account.data?.role === "admin";
   const squad = useSquad(admin ? account.data?.id : undefined);
@@ -64,6 +66,18 @@ export function SquadPage() {
             </label>
           </div>
         )}
+        <section id="player-leaderboards" className="mb-16 scroll-mt-24">
+          <div className="mb-7 flex items-end justify-between gap-5">
+            <div>
+              <p className="eyebrow text-copper">{t("leaderboards.eyebrow")}</p>
+              <h2 className="mt-3 font-display text-4xl font-bold uppercase md:text-5xl">
+                {t("leaderboards.title")}
+              </h2>
+            </div>
+            <span className="text-sm text-muted-foreground">{SQUAD_SEASON}</span>
+          </div>
+          <PlayerLeaderboards />
+        </section>
         <PositionFilter value={position} onChange={setPosition} />
         {squad.isPending ? (
           <p role="status" className="py-12 text-muted-foreground">
@@ -146,7 +160,13 @@ export function SquadPage() {
       >
         <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
           <DialogTitle>
-            {t("squad.deactivateTitle", { name: removing?.display_name ?? "" })}
+            {t("squad.deactivateTitle", {
+              name: localizedPlayerName(
+                removing?.display_name ?? "",
+                removing?.chinese_name,
+                language,
+              ),
+            })}
           </DialogTitle>
           <DialogDescription>{t("squad.deactivateHint")}</DialogDescription>
           {changeStatus.isError && (

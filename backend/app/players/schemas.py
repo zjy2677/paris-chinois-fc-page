@@ -11,6 +11,8 @@ ShirtNumber = Annotated[int, Field(gt=0, le=2147483647, strict=True)]
 class PlayerInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     display_name: str = Field(min_length=1, max_length=150)
+    # Existing players may not have a Chinese name yet; new players require one.
+    chinese_name: str | None = Field(default=None, min_length=1, max_length=150)
     photo_url: HttpUrl | None = None
     description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
@@ -38,6 +40,7 @@ class PlayerInput(BaseModel):
 
 
 class PlayerCreate(PlayerInput):
+    chinese_name: str = Field(min_length=1, max_length=150)
     season: Season
 
     @field_validator("season")
@@ -53,6 +56,7 @@ class PlayerCreate(PlayerInput):
 class PlayerUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     display_name: str | None = Field(default=None, min_length=1, max_length=150)
+    chinese_name: str | None = Field(default=None, min_length=1, max_length=150)
     photo_url: HttpUrl | None = None
     description: str | None = Field(default=None, max_length=2000)
     shirt_number: ShirtNumber | None = None
@@ -63,7 +67,7 @@ class PlayerUpdate(BaseModel):
     @model_validator(mode="after")
     def required_fields_cannot_be_cleared(self):
         """Reject empty updates and explicit nulls for name, position, or active status."""
-        for name in ("display_name", "position", "alternate_positions", "active"):
+        for name in ("display_name", "chinese_name", "position", "alternate_positions", "active"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} cannot be null")
         if not self.model_fields_set:
@@ -81,6 +85,7 @@ class SquadSeasonResponse(BaseModel):
 class PlayerProfileResponse(BaseModel):
     id: UUID
     display_name: str
+    chinese_name: str | None
     photo_url: str | None
     has_uploaded_photo: bool
     description: str | None
@@ -88,3 +93,20 @@ class PlayerProfileResponse(BaseModel):
     squads: list[SquadSeasonResponse]
     goals: int
     assists: int
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    player_id: UUID
+    display_name: str
+    chinese_name: str | None
+    photo_url: str | None
+    has_uploaded_photo: bool
+    shirt_number: int | None
+    total: int
+
+
+class PlayerLeaderboardsResponse(BaseModel):
+    season: Season
+    scorers: list[LeaderboardEntry]
+    assists: list[LeaderboardEntry]

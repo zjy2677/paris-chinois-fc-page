@@ -44,6 +44,7 @@ class GoalPlayer(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     display_name: str
+    chinese_name: str | None
 
 
 class GoalResponse(BaseModel):

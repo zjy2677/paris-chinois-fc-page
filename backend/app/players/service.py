@@ -2,19 +2,101 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..models import MatchGoal, Player, PlayerPhoto, SquadMembership
+from ..models import (
+    CompetitionSeason,
+    Match,
+    MatchEvent,
+    MatchGoal,
+    Player,
+    PlayerPhoto,
+    SquadMembership,
+)
 from ..schemas import PlayerResponse
 from .schemas import (
+    LeaderboardEntry,
     PlayerCreate,
     PlayerInput,
+    PlayerLeaderboardsResponse,
     PlayerProfileResponse,
     PlayerUpdate,
     SquadSeasonResponse,
 )
+
+
+def goal_records():
+    """Combine match-editor events with legacy goals without counting a match twice."""
+    match_has_events = (
+        select(MatchEvent.id)
+        .where(MatchEvent.match_id == MatchGoal.match_id, MatchEvent.event_type == "goal")
+        .exists()
+    )
+    return union_all(
+        select(
+            MatchEvent.match_id.label("match_id"),
+            MatchEvent.player_id.label("scorer_id"),
+            MatchEvent.assist_player_id.label("assist_player_id"),
+        ).where(MatchEvent.event_type == "goal"),
+        select(
+            MatchGoal.match_id.label("match_id"),
+            MatchGoal.scorer_id.label("scorer_id"),
+            MatchGoal.assist_player_id.label("assist_player_id"),
+        ).where(MatchGoal.goal_type != "own_goal", ~match_has_events),
+    ).subquery()
+
+
+def leaderboard_entries(db: Session, season: str, records, player_field) -> list[LeaderboardEntry]:
+    """Aggregate one ranked list from the club events entered in the match editor."""
+    total = func.count().label("total")
+    has_photo = select(PlayerPhoto.player_id).where(PlayerPhoto.player_id == Player.id).exists()
+    rows = db.execute(
+        select(Player, SquadMembership.shirt_number, total, has_photo)
+        .join(records, player_field == Player.id)
+        .join(Match, Match.id == records.c.match_id)
+        .join(CompetitionSeason, CompetitionSeason.id == Match.competition_season_id)
+        .outerjoin(
+            SquadMembership,
+            and_(
+                SquadMembership.player_id == Player.id,
+                SquadMembership.season_label == season,
+            ),
+        )
+        .where(CompetitionSeason.season_label == season)
+        .group_by(Player.id, SquadMembership.shirt_number)
+        .order_by(total.desc(), Player.display_name, Player.id)
+    ).all()
+    rank = 0
+    previous_total = None
+    entries = []
+    for position, (player, shirt_number, count, has_uploaded_photo) in enumerate(rows, start=1):
+        if count != previous_total:
+            rank = position
+            previous_total = count
+        entries.append(
+            LeaderboardEntry(
+                rank=rank,
+                player_id=player.id,
+                display_name=player.display_name,
+                chinese_name=player.chinese_name,
+                photo_url=player.photo_url,
+                has_uploaded_photo=has_uploaded_photo,
+                shirt_number=shirt_number,
+                total=count,
+            )
+        )
+    return entries
+
+
+def leaderboards(db: Session, season: str) -> PlayerLeaderboardsResponse:
+    records = goal_records()
+    return PlayerLeaderboardsResponse(
+        season=season,
+        scorers=leaderboard_entries(db, season, records, records.c.scorer_id),
+        assists=leaderboard_entries(db, season, records, records.c.assist_player_id),
+    )
 
 
 def response(
@@ -25,6 +107,7 @@ def response(
         description=player.description,
         id=player.id,
         display_name=player.display_name,
+        chinese_name=player.chinese_name,
         photo_url=player.photo_url,
         has_uploaded_photo=has_uploaded_photo,
         active=player.active,
@@ -51,6 +134,7 @@ def create(db: Session, body: PlayerCreate):
     player = Player(
         description=body.description,
         display_name=body.display_name,
+        chinese_name=body.chinese_name,
         photo_url=str(body.photo_url) if body.photo_url else None,
         active=body.active,
     )
@@ -84,6 +168,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
     values = {
         "description": player.description,
         "display_name": player.display_name,
+        "chinese_name": player.chinese_name,
         "photo_url": player.photo_url,
         "active": player.active,
         "shirt_number": squad.shirt_number,
@@ -96,6 +181,7 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
     except ValidationError:
         raise HTTPException(422, "Invalid player details or photo URL") from None
     player.display_name, player.active = validated.display_name, validated.active
+    player.chinese_name = validated.chinese_name
     player.photo_url = str(validated.photo_url) if validated.photo_url else None
     if "photo_url" in changes:
         uploaded = db.get(PlayerPhoto, player_id)
@@ -126,20 +212,18 @@ def profile(db: Session, player_id: UUID) -> PlayerProfileResponse:
         .where(SquadMembership.player_id == player_id)
         .order_by(SquadMembership.season_label.desc())
     )
-    # Count events directly, without joining memberships and multiplying goal rows.
+    # Match events take precedence, with legacy goal rows retained for unconverted matches.
+    records = goal_records()
     goals = db.scalar(
-        select(func.count())
-        .select_from(MatchGoal)
-        .where(MatchGoal.scorer_id == player_id, MatchGoal.goal_type != "own_goal")
+        select(func.count()).select_from(records).where(records.c.scorer_id == player_id)
     )
     assists = db.scalar(
-        select(func.count())
-        .select_from(MatchGoal)
-        .where(MatchGoal.assist_player_id == player_id, MatchGoal.goal_type != "own_goal")
+        select(func.count()).select_from(records).where(records.c.assist_player_id == player_id)
     )
     return PlayerProfileResponse(
         id=player.id,
         display_name=player.display_name,
+        chinese_name=player.chinese_name,
         photo_url=player.photo_url,
         has_uploaded_photo=db.get(PlayerPhoto, player_id) is not None,
         description=player.description,

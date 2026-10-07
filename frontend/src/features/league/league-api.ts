@@ -121,17 +121,20 @@ export type MatchDetail = Match & {
   videos: Highlight[];
   description: string | null;
   events: MatchEvent[];
+  photos: import("@/features/gallery/media-api").Photo[];
 };
 type ApiMatchDetail = ApiMatch & {
   videos: Highlight[];
   description: string | null;
   events: MatchEvent[];
+  photos: import("@/features/gallery/media-api").Photo[];
 };
 const toMatchDetail = (data: ApiMatchDetail): MatchDetail => ({
   ...toMatch(data),
   videos: data.videos,
   description: data.description,
   events: data.events,
+  photos: data.photos ?? [],
 });
 export function useMatch(id: string) {
   return useQuery({
@@ -156,6 +159,7 @@ export function usePlayers() {
         Array<{
           id: string;
           display_name: string;
+          chinese_name: string | null;
           shirt_number: number | null;
           position: Player["position"];
         }>
@@ -164,6 +168,7 @@ export function usePlayers() {
       rows.map((p) => ({
         id: p.id,
         name: p.display_name,
+        chineseName: p.chinese_name,
         number: p.shirt_number ?? 0,
         position: p.position,
       })),
@@ -215,7 +220,15 @@ export function useSaveMatchRecord(id: string) {
       description: string | null;
       home_score: number | null;
       away_score: number | null;
-      events: Omit<MatchEvent, "id" | "player_name" | "assist_player_name" | "sequence">[];
+      events: Omit<
+        MatchEvent,
+        | "id"
+        | "player_name"
+        | "player_chinese_name"
+        | "assist_player_name"
+        | "assist_player_chinese_name"
+        | "sequence"
+      >[];
     }) =>
       adminRequest<ApiMatchDetail>(`/matches/${encodeURIComponent(id)}/record`, "PUT", body).then(
         toMatchDetail,

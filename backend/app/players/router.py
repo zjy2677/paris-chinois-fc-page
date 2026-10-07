@@ -9,11 +9,17 @@ from ..models import Player, PlayerPhoto
 from ..profile import MAX_AVATAR_BYTES, avatar_type
 from ..schemas import PlayerResponse
 from . import service
-from .schemas import PlayerCreate, PlayerProfileResponse, PlayerUpdate
+from .schemas import PlayerCreate, PlayerLeaderboardsResponse, PlayerProfileResponse, PlayerUpdate
 
 router = APIRouter(prefix="/api", tags=["Player management"])
 admin = [Depends(require_role("admin")), Depends(no_store)]
 mutation = [*admin, Depends(trusted_origin), Depends(throttle)]
+
+
+@router.get("/player-leaderboards", response_model=PlayerLeaderboardsResponse)
+def player_leaderboards(db: DB, season: str = Query("2026/2027", pattern=r"^\d{4}/\d{4}$")):
+    """Return this season's club scoring and assist leaders from recorded match events."""
+    return service.leaderboards(db, season)
 
 
 @router.get("/players/{player_id}", response_model=PlayerProfileResponse)

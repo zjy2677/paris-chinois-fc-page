@@ -4,6 +4,7 @@ export const navigation = [
   { label: "Team", labelKey: "team", to: "/team" },
   { label: "About Us", labelKey: "about", to: "/about" },
   { label: "Blog", labelKey: "blog", to: "/blog" },
+  { label: "Gallery", labelKey: "gallery", to: "/gallery" },
   { label: "Guestbook", labelKey: "guestbook", to: "/guestbook" },
   { label: "Contact", labelKey: "contact", to: "/contact" },
 ] as const;

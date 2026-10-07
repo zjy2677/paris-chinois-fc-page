@@ -20,8 +20,10 @@ export type MatchEvent = {
   event_type: "goal" | "yellow_card" | "red_card";
   player_id: string | null;
   player_name?: string | null;
+  player_chinese_name?: string | null;
   assist_player_id: string | null;
   assist_player_name?: string | null;
+  assist_player_chinese_name?: string | null;
   minute: number | null;
   sequence?: number;
 };
@@ -39,6 +41,7 @@ export type Player = {
   description: string | null;
   id: string;
   display_name: string;
+  chinese_name: string | null;
   photo_url: string | null;
   has_uploaded_photo: boolean;
   shirt_number: number | null;
