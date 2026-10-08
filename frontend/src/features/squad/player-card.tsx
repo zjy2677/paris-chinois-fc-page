@@ -30,7 +30,7 @@ export function PlayerCard({
             {(player.alternate_positions ?? []).map((p) => c(p.slice(0, -1))).join(" · ")}
           </p>
         )}
-        <h3 className="mt-2 break-words font-display text-2xl font-bold uppercase leading-none md:text-3xl">
+        <h3 className="mt-2 break-words font-display text-2xl font-bold leading-none md:text-3xl">
           {showProfileLink ? (
             <Link
               to="/team/$playerId"
