@@ -45,7 +45,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
           </div>
           <div className="min-w-0">
             <p className="eyebrow text-copper">{t("profile.label")}</p>
-            <h1 className="mt-3 break-words font-display text-5xl font-bold uppercase leading-tight md:text-7xl">
+            <h1 className="mt-3 break-words font-display text-5xl font-bold leading-tight md:text-7xl">
               {localizedPlayerName(player.display_name, player.chinese_name, language)}
             </h1>
             {!player.active && <p className="mt-3 text-muted-foreground">{t("squad.inactive")}</p>}
