@@ -227,6 +227,26 @@ class Player(Identity, Base):
     active: Mapped[bool] = mapped_column(default=True)
 
 
+class PlayerAttribute(Identity, Base):
+    """An admin assessment; level measures strength or weakness intensity."""
+
+    __tablename__ = "player_attributes"
+    __table_args__ = (
+        CheckConstraint("kind IN ('strength', 'weakness')", name="player_attribute_kind"),
+        CheckConstraint("level BETWEEN 1 AND 5", name="player_attribute_level"),
+    )
+    player_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), index=True
+    )
+    label: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(10))
+    level: Mapped[int]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class SquadMembership(Identity, Base):
     __tablename__ = "squad_memberships"
     __table_args__ = (

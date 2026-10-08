@@ -1,6 +1,20 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "attributes.title": "Caractéristiques du joueur",
+  "attributes.add": "Ajouter une étiquette",
+  "attributes.strength": "Points forts",
+  "attributes.weakness": "Points faibles",
+  "attributes.level": "Niveau {level}/5",
+  "attributes.levels": "Intensité",
+  "attributes.hint":
+    "Un niveau élevé indique un atout plus marqué ou une faiblesse plus prononcée. Évaluation du club.",
+  "attributes.empty": "Aucune étiquette.",
+  "attributes.label": "Caractéristique",
+  "attributes.kind": "Catégorie",
+  "attributes.remove": "Supprimer",
+  "attributes.confirmRemove": "Confirmer la suppression",
+
   "profile.label": "Profil du joueur",
   "profile.description": "Présentation du joueur",
   "profile.back": "Retour à l’effectif",

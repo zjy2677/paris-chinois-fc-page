@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import { Button } from "@/components/ui/button";
+import { PlayerAttributes } from "./player-attributes";
 import { PlayerCard } from "./player-card";
 import { PlayerPortrait } from "./player-portrait";
 import { PlayerApiError, playerPhotoUrl, usePlayerProfile } from "./squad-api";
@@ -54,6 +55,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
                 {player.description || t("profile.noDescription")}
               </p>
             </section>
+            <PlayerAttributes key={player.id} playerId={player.id} />
             <section className="mt-10" aria-labelledby="player-statistics">
               <h2 id="player-statistics" className="text-xl font-semibold">
                 {t("profile.statistics")}
