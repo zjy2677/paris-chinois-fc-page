@@ -354,3 +354,16 @@ records and refuses with an actionable error. Export and reconcile these rows an
 their dependent data explicitly before retrying. The downgrade does not silently
 delete manual matches or teams. As with other schema rollbacks, export match reports
 and events before dropping their tables.
+
+## Private API documentation
+
+`/docs`, `/redoc`, and `/openapi.json` require HTTP Basic authentication using an
+existing active admin account's email (the browser's username field) and password.
+Use HTTPS in deployment. Regular users and players cannot access documentation.
+Responses are not cached; login attempts share the existing per-process throttle.
+No additional secret or migration is required. Browser Basic credentials may remain
+cached until the browser session is closed; use a private window on shared devices.
+
+This protects documentation only. Public data endpoints remain public, and existing
+API authorization is unchanged. Documentation login does not create an API session
+or grant Swagger's requests permission to perform admin mutations.
