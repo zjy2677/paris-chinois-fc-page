@@ -2,14 +2,24 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from .. import services
 from ..auth.dependencies import DB, no_store, require_role, throttle, trusted_origin
 from ..models import Player, PlayerPhoto
+from ..photo_storage import photo_transaction
 from ..profile import MAX_AVATAR_BYTES, avatar_type
 from ..schemas import PlayerResponse
-from . import service
-from .schemas import PlayerCreate, PlayerLeaderboardsResponse, PlayerProfileResponse, PlayerUpdate
+from ..storage import StorageUnavailable, get_storage
+from . import attributes, service
+from .schemas import (
+    AttributeInput,
+    AttributeResponse,
+    PlayerCreate,
+    PlayerLeaderboardsResponse,
+    PlayerProfileResponse,
+    PlayerUpdate,
+)
 
 router = APIRouter(prefix="/api", tags=["Player management"])
 admin = [Depends(require_role("admin")), Depends(no_store)]
@@ -32,8 +42,14 @@ def player_photo(player_id: UUID, db: DB):
     photo = db.get(PlayerPhoto, player_id)
     if photo is None:
         raise HTTPException(404, "Player photo not found")
+    try:
+        data = get_storage().get(photo.storage_key) if photo.storage_key else photo.data
+    except StorageUnavailable as error:
+        raise HTTPException(503, "Media storage is unavailable") from error
+    if data is None:
+        raise HTTPException(404, "Player photo content is unavailable")
     return Response(
-        content=photo.data,
+        content=data,
         media_type=photo.content_type,
         headers={"Cache-Control": "no-cache"},
     )
@@ -61,9 +77,6 @@ def update_player(
 
 @router.put("/players/{player_id}/photo", status_code=204, dependencies=mutation)
 async def upload_player_photo(player_id: UUID, request: Request, db: DB):
-    player = db.get(Player, player_id, with_for_update=True)
-    if player is None:
-        raise HTTPException(404, "Player not found")
     declared_size = request.headers.get("content-length")
     if declared_size:
         try:
@@ -80,16 +93,65 @@ async def upload_player_photo(player_id: UUID, request: Request, db: DB):
     if not data:
         raise HTTPException(400, "Player photo is required")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
+    await run_in_threadpool(save_player_photo, db, player_id, content_type, data)
+
+
+def save_player_photo(db, player_id, content_type, data):
+    player = db.get(Player, player_id, with_for_update=True)
+    if player is None:
+        raise HTTPException(404, "Player not found")
     photo = db.scalar(select(PlayerPhoto).where(PlayerPhoto.player_id == player_id))
-    if photo is None:
-        db.add(PlayerPhoto(player_id=player_id, content_type=content_type, data=data))
-    else:
-        photo.content_type, photo.data = content_type, data
-    player.photo_url = None
-    db.commit()
+    with photo_transaction(db) as write:
+        storage_key = write.put(f"players/{player_id}", data, content_type)
+        if photo is None:
+            db.add(
+                PlayerPhoto(
+                    player_id=player_id,
+                    content_type=content_type,
+                    data=None if storage_key else data,
+                    storage_key=storage_key,
+                )
+            )
+        else:
+            write.retire(photo.storage_key)
+            photo.content_type = content_type
+            photo.data = None if storage_key else data
+            photo.storage_key = storage_key
+        player.photo_url = None
 
 
 @router.delete("/players/{player_id}", status_code=204, dependencies=mutation)
 def deactivate_player(player_id: UUID, db: DB):
     """Deactivate a player across seasons after the admin mutation checks pass."""
     service.deactivate(db, player_id)
+
+
+@router.get("/players/{player_id}/attributes", response_model=list[AttributeResponse])
+def player_attributes(player_id: UUID, db: DB):
+    return attributes.list_attributes(db, player_id)
+
+
+@router.post(
+    "/players/{player_id}/attributes",
+    response_model=AttributeResponse,
+    status_code=201,
+    dependencies=mutation,
+)
+def create_attribute(player_id: UUID, body: AttributeInput, db: DB):
+    return attributes.create(db, player_id, body)
+
+
+@router.put(
+    "/players/{player_id}/attributes/{attribute_id}",
+    response_model=AttributeResponse,
+    dependencies=mutation,
+)
+def update_attribute(player_id: UUID, attribute_id: UUID, body: AttributeInput, db: DB):
+    return attributes.update(db, player_id, attribute_id, body)
+
+
+@router.delete(
+    "/players/{player_id}/attributes/{attribute_id}", status_code=204, dependencies=mutation
+)
+def delete_attribute(player_id: UUID, attribute_id: UUID, db: DB):
+    attributes.delete(db, player_id, attribute_id)

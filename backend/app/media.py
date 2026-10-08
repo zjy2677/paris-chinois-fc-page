@@ -9,10 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from PIL import Image
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
+from starlette.concurrency import run_in_threadpool
 
 from .auth.dependencies import DB, current_user, require_role, throttle, trusted_origin
 from .guestbook import COOKIE_NAME, token_hash
 from .models import AlbumPhoto, BlogPost, GuestbookMessage, Match, MediaAsset, PhotoAlbum, User
+from .photo_storage import PhotoWrite, photo_transaction
+from .storage import StorageUnavailable, get_storage
 
 router = APIRouter(prefix="/api/media", tags=["Media"])
 mutation = [Depends(trusted_origin), Depends(throttle)]
@@ -164,14 +167,18 @@ def new_asset(
     caption: str | None,
     alt_text: str | None,
     status: str = "visible",
+    *,
+    write: PhotoWrite,
     **links,
 ) -> MediaAsset:
     content_type, data = image
+    storage_key = write.put("media", data, content_type)
     asset = MediaAsset(
         uploaded_by=user_id,
         content_type=content_type,
         size_bytes=len(data),
-        data=data,
+        data=None if storage_key else data,
+        storage_key=storage_key,
         caption=metadata(caption),
         alt_text=metadata(alt_text) or "",
         status=status,
@@ -180,6 +187,17 @@ def new_asset(
     db.add(asset)
     db.flush()
     return asset
+
+
+def asset_data(asset: MediaAsset) -> bytes:
+    if asset.storage_key:
+        try:
+            return get_storage().get(asset.storage_key)
+        except StorageUnavailable as error:
+            raise HTTPException(503, "Media storage is unavailable") from error
+    if asset.data is None:
+        raise HTTPException(404, "Photo content is unavailable")
+    return asset.data
 
 
 @router.post(
@@ -197,28 +215,32 @@ async def upload_album_photo(
     alt: str | None = Query(default=None, max_length=900),
 ):
     image = await read_image(request)
-    if db.get(PhotoAlbum, album_id, with_for_update=True) is None:
-        raise HTTPException(404, "Album not found")
-    count = (
-        db.scalar(
-            select(func.count()).select_from(AlbumPhoto).where(AlbumPhoto.album_id == album_id)
+    return await run_in_threadpool(save_album_photo, image, album_id, db, user.id, caption, alt)
+
+
+def save_album_photo(image, album_id, db, user_id, caption, alt):
+    with photo_transaction(db) as write:
+        if db.get(PhotoAlbum, album_id, with_for_update=True) is None:
+            raise HTTPException(404, "Album not found")
+        count = (
+            db.scalar(
+                select(func.count()).select_from(AlbumPhoto).where(AlbumPhoto.album_id == album_id)
+            )
+            or 0
         )
-        or 0
-    )
-    if count >= MAX_PHOTOS_PER_CONTENT:
-        raise HTTPException(409, "Photo limit reached")
-    asset = new_asset(image, db, user.id, caption, alt)
-    last_position = db.scalar(
-        select(func.max(AlbumPhoto.position)).where(AlbumPhoto.album_id == album_id)
-    )
-    db.add(
-        AlbumPhoto(
-            album_id=album_id,
-            media_id=asset.id,
-            position=(last_position + 1 if last_position is not None else 0),
+        if count >= MAX_PHOTOS_PER_CONTENT:
+            raise HTTPException(409, "Photo limit reached")
+        asset = new_asset(image, db, user_id, caption, alt, write=write)
+        last_position = db.scalar(
+            select(func.max(AlbumPhoto.position)).where(AlbumPhoto.album_id == album_id)
         )
-    )
-    db.commit()
+        db.add(
+            AlbumPhoto(
+                album_id=album_id,
+                media_id=asset.id,
+                position=(last_position + 1 if last_position is not None else 0),
+            )
+        )
     return photo_response(asset)
 
 
@@ -234,34 +256,41 @@ async def upload_blog_photo(
     alt: str | None = Query(default=None, max_length=900),
 ):
     image = await read_image(request)
-    post = db.get(BlogPost, post_id, with_for_update=True)
-    if post is None:
-        raise HTTPException(404, "Post not found")
-    if post.author_id != user.id and user.role != "admin":
-        raise HTTPException(403, "Not your post")
-    if post.status not in ("draft", "rejected"):
-        raise HTTPException(409, "Only editable posts accept photos")
-    count = (
-        db.scalar(
-            select(func.count()).select_from(MediaAsset).where(MediaAsset.blog_post_id == post_id)
+    return await run_in_threadpool(save_blog_photo, image, post_id, db, user, caption, alt)
+
+
+def save_blog_photo(image, post_id, db, user, caption, alt):
+    with photo_transaction(db) as write:
+        post = db.get(BlogPost, post_id, with_for_update=True)
+        if post is None:
+            raise HTTPException(404, "Post not found")
+        if post.author_id != user.id and user.role != "admin":
+            raise HTTPException(403, "Not your post")
+        if post.status not in ("draft", "rejected"):
+            raise HTTPException(409, "Only editable posts accept photos")
+        count = (
+            db.scalar(
+                select(func.count())
+                .select_from(MediaAsset)
+                .where(MediaAsset.blog_post_id == post_id)
+            )
+            or 0
         )
-        or 0
-    )
-    if count >= MAX_PHOTOS_PER_CONTENT:
-        raise HTTPException(409, "Photo limit reached")
-    last_position = db.scalar(
-        select(func.max(MediaAsset.position)).where(MediaAsset.blog_post_id == post_id)
-    )
-    asset = new_asset(
-        image,
-        db,
-        user.id,
-        caption,
-        alt,
-        blog_post_id=post_id,
-        position=(last_position + 1 if last_position is not None else 0),
-    )
-    db.commit()
+        if count >= MAX_PHOTOS_PER_CONTENT:
+            raise HTTPException(409, "Photo limit reached")
+        last_position = db.scalar(
+            select(func.max(MediaAsset.position)).where(MediaAsset.blog_post_id == post_id)
+        )
+        asset = new_asset(
+            image,
+            db,
+            user.id,
+            caption,
+            alt,
+            blog_post_id=post_id,
+            position=(last_position + 1 if last_position is not None else 0),
+            write=write,
+        )
     return photo_response(asset)
 
 
@@ -280,29 +309,34 @@ async def upload_match_photo(
     alt: str | None = Query(default=None, max_length=900),
 ):
     image = await read_image(request)
-    if db.get(Match, match_id, with_for_update=True) is None:
-        raise HTTPException(404, "Match not found")
-    count = (
-        db.scalar(
-            select(func.count()).select_from(MediaAsset).where(MediaAsset.match_id == match_id)
+    return await run_in_threadpool(save_match_photo, image, match_id, db, user.id, caption, alt)
+
+
+def save_match_photo(image, match_id, db, user_id, caption, alt):
+    with photo_transaction(db) as write:
+        if db.get(Match, match_id, with_for_update=True) is None:
+            raise HTTPException(404, "Match not found")
+        count = (
+            db.scalar(
+                select(func.count()).select_from(MediaAsset).where(MediaAsset.match_id == match_id)
+            )
+            or 0
         )
-        or 0
-    )
-    if count >= MAX_PHOTOS_PER_CONTENT:
-        raise HTTPException(409, "Photo limit reached")
-    last_position = db.scalar(
-        select(func.max(MediaAsset.position)).where(MediaAsset.match_id == match_id)
-    )
-    asset = new_asset(
-        image,
-        db,
-        user.id,
-        caption,
-        alt,
-        match_id=match_id,
-        position=(last_position + 1 if last_position is not None else 0),
-    )
-    db.commit()
+        if count >= MAX_PHOTOS_PER_CONTENT:
+            raise HTTPException(409, "Photo limit reached")
+        last_position = db.scalar(
+            select(func.max(MediaAsset.position)).where(MediaAsset.match_id == match_id)
+        )
+        asset = new_asset(
+            image,
+            db,
+            user_id,
+            caption,
+            alt,
+            match_id=match_id,
+            position=(last_position + 1 if last_position is not None else 0),
+            write=write,
+        )
     return photo_response(asset)
 
 
@@ -320,19 +354,33 @@ async def upload_guestbook_photo(
     alt: str | None = Query(default=None, max_length=900),
 ):
     image = await read_image(request)
-    message = db.get(GuestbookMessage, message_id, with_for_update=True)
-    token = request.cookies.get(COOKIE_NAME)
-    if message is None or token is None or message.visitor_hash != token_hash(token):
-        raise HTTPException(404, "Message not found")
-    if message.status != "pending":
-        raise HTTPException(409, "Only pending messages accept a photo")
-    exists = db.scalar(select(MediaAsset.id).where(MediaAsset.guestbook_message_id == message_id))
-    if exists:
-        raise HTTPException(409, "A message can have one photo")
-    asset = new_asset(
-        image, db, None, caption, alt, status="pending", guestbook_message_id=message_id
+    return await run_in_threadpool(
+        save_guestbook_photo, image, message_id, db, request.cookies.get(COOKIE_NAME), caption, alt
     )
-    db.commit()
+
+
+def save_guestbook_photo(image, message_id, db, token, caption, alt):
+    with photo_transaction(db) as write:
+        message = db.get(GuestbookMessage, message_id, with_for_update=True)
+        if message is None or token is None or message.visitor_hash != token_hash(token):
+            raise HTTPException(404, "Message not found")
+        if message.status != "pending":
+            raise HTTPException(409, "Only pending messages accept a photo")
+        exists = db.scalar(
+            select(MediaAsset.id).where(MediaAsset.guestbook_message_id == message_id)
+        )
+        if exists:
+            raise HTTPException(409, "A message can have one photo")
+        asset = new_asset(
+            image,
+            db,
+            None,
+            caption,
+            alt,
+            status="pending",
+            guestbook_message_id=message_id,
+            write=write,
+        )
     return photo_response(asset)
 
 
@@ -345,7 +393,7 @@ def preview_photo(photo_id: UUID, db: DB):
     if asset is None:
         raise HTTPException(404, "Photo not found")
     return Response(
-        content=asset.data,
+        content=asset_data(asset),
         media_type=asset.content_type,
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
@@ -385,7 +433,7 @@ def photo_content(photo_id: UUID, db: DB):
     if not allowed:
         raise HTTPException(404, "Photo not found")
     return Response(
-        content=asset.data,
+        content=asset_data(asset),
         media_type=asset.content_type,
         headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
     )
@@ -393,10 +441,11 @@ def photo_content(photo_id: UUID, db: DB):
 
 @router.delete("/photos/{photo_id}", status_code=204, dependencies=mutation)
 def delete_photo(photo_id: UUID, db: DB, user: Annotated[User, Depends(current_user)]):
-    asset = db.get(MediaAsset, photo_id)
+    asset = db.get(MediaAsset, photo_id, with_for_update=True)
     if asset is None:
         raise HTTPException(404, "Photo not found")
     if user.role != "admin" and asset.uploaded_by != user.id:
         raise HTTPException(403, "Not your photo")
-    db.delete(asset)
-    db.commit()
+    with photo_transaction(db) as write:
+        write.retire(asset.storage_key)
+        db.delete(asset)

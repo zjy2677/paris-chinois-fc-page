@@ -1,5 +1,36 @@
 # Backend and ETL v1
 
+## R2 photo cleanup and rollback
+
+Uploads use a new object key for every version. The database commits the new photo
+reference before the previous object is removed. Failed database writes compensate
+by deleting the new upload. Failed object deletions remain in `storage_deletions`,
+including when R2 is temporarily disabled and an upload falls back to database bytes.
+Changing a player's photo to an external URL uses the same cleanup queue.
+
+After restoring R2 access, run from the repository root with the backend environment:
+
+```sh
+backend/.venv/bin/python -m app.photo_storage
+```
+
+This retries up to 100 pending deletions; repeat until `storage_deletions` is empty.
+Normal requests attempt only their own cleanup, and do not scan unrelated bucket objects.
+If both the database and R2 are unavailable during upload compensation, the exact orphan
+keys are logged for manual cleanup. A process crash between PUT and commit can also leave
+an orphan; reconcile bucket inventory against all three photo tables before removing it.
+
+### R2 rollback
+
+Pause photo writes and back up the database before downgrading. Restore every photo's
+`data` bytes from its `storage_key` in R2 for `media_assets`, `player_photos`, and
+`user_avatars`, verifying content type, image integrity, and size before committing.
+Keep the R2 objects until the restored application is verified. Drain pending deletions
+before downgrading the cleanup migration. The R2 migration deliberately refuses to
+downgrade while any photo has NULL `data`; it never silently drops R2-only photos.
+
+Production `R2_ENDPOINT_URL` must use HTTPS. Storage credentials remain backend-only.
+
 FastAPI serves PostgreSQL records. SQLAlchemy models define tables; Alembic owns schema
 changes. `app/routers.py` handles HTTP, `app/schemas.py` defines public payloads,
 `app/services.py` contains queries, and `app/database.py` supplies a session per request.
@@ -54,8 +85,33 @@ public football data only and are for regression tests, not a production data se
 - `POST /api/contact-messages`: validated storage, disabled by default. Add spam protection
   before setting CONTACT_ENABLED=true on a public deployment. No public inbox or email delivery.
 
-Authentication routes are enabled. Upload routes remain pending. Playback URLs, object storage, admin workflows, scheduling are subsequent steps. Home, League and match detail pages read the API. League sample data has been removed;
+Authentication and protected upload routes are enabled. Image uploads use Cloudflare R2 when all
+R2 variables are configured; existing database-backed image rows remain readable as a migration
+fallback. Without R2 configuration, local development keeps storing image bytes in PostgreSQL.
+Playback URLs, object storage for uploaded videos, admin workflows and scheduling are subsequent
+steps. Home, League and match detail pages read the API. League sample data has been removed;
 squad records remain illustrative until verified player data is supplied.
+
+### Cloudflare R2 image storage
+
+Create a bucket-scoped R2 API token with Object Read and Write access, then set these Render
+environment variables. Keep the access key and secret on the backend only; they must never be
+prefixed with `VITE_` or committed:
+
+```text
+R2_ENDPOINT_URL=https://ACCOUNT_ID.r2.cloudflarestorage.com
+R2_BUCKET_NAME=your-bucket-name
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+```
+
+The API stores only an object key for new media, player photos and avatars. Public response URLs
+still go through the existing API authorization checks, while legacy rows with `data` continue to
+serve directly from PostgreSQL. Apply the R2 migration before enabling the variables:
+
+```sh
+backend/.venv/bin/alembic -c backend/alembic.ini upgrade head
+```
 
 ## Validation
 
@@ -298,3 +354,16 @@ records and refuses with an actionable error. Export and reconcile these rows an
 their dependent data explicitly before retrying. The downgrade does not silently
 delete manual matches or teams. As with other schema rollbacks, export match reports
 and events before dropping their tables.
+
+## Private API documentation
+
+`/docs`, `/redoc`, and `/openapi.json` require HTTP Basic authentication using an
+existing active admin account's email (the browser's username field) and password.
+Use HTTPS in deployment. Regular users and players cannot access documentation.
+Responses are not cached; login attempts share the existing per-process throttle.
+No additional secret or migration is required. Browser Basic credentials may remain
+cached until the browser session is closed; use a private window on shared devices.
+
+This protects documentation only. Public data endpoints remain public, and existing
+API authorization is unchanged. Documentation login does not create an API session
+or grant Swagger's requests permission to perform admin mutations.

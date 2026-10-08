@@ -1,4 +1,19 @@
 export const en = {
+  "attributes.save": "Save tag",
+  "attributes.title": "Player attributes",
+  "attributes.add": "Add tag",
+  "attributes.strength": "Strengths",
+  "attributes.weakness": "Weaknesses",
+  "attributes.level": "Level {level}/5",
+  "attributes.levels": "Intensity",
+  "attributes.hint":
+    "Higher levels mean a stronger advantage or a more pronounced weakness. Assessed by the club.",
+  "attributes.empty": "No tags yet.",
+  "attributes.label": "Attribute",
+  "attributes.kind": "Category",
+  "attributes.remove": "Remove",
+  "attributes.confirmRemove": "Confirm removal",
+
   "profile.label": "Player profile",
   "profile.description": "Player description",
   "profile.back": "Back to squad",

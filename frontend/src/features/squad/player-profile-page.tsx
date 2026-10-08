@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import { Button } from "@/components/ui/button";
+import { PlayerAttributes } from "./player-attributes";
 import { PlayerCard } from "./player-card";
 import { PlayerPortrait } from "./player-portrait";
 import { PlayerApiError, playerPhotoUrl, usePlayerProfile } from "./squad-api";
@@ -45,7 +46,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
           </div>
           <div className="min-w-0">
             <p className="eyebrow text-copper">{t("profile.label")}</p>
-            <h1 className="mt-3 break-words font-display text-5xl font-bold uppercase leading-tight md:text-7xl">
+            <h1 className="mt-3 break-words font-display text-5xl font-bold leading-tight md:text-7xl">
               {localizedPlayerName(player.display_name, player.chinese_name, language)}
             </h1>
             {!player.active && <p className="mt-3 text-muted-foreground">{t("squad.inactive")}</p>}
@@ -54,6 +55,7 @@ export function PlayerProfilePage({ id }: { id: string }) {
                 {player.description || t("profile.noDescription")}
               </p>
             </section>
+            <PlayerAttributes key={player.id} playerId={player.id} />
             <section className="mt-10" aria-labelledby="player-statistics">
               <h2 id="player-statistics" className="text-xl font-semibold">
                 {t("profile.statistics")}

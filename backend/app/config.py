@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     auth_cookie_secure: bool = True
     auth_ttl_seconds: int = 28800
+    r2_endpoint_url: str | None = None
+    r2_bucket_name: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
 
     @field_validator("database_url", "database_migration_url")
     @classmethod
@@ -35,6 +39,10 @@ class Settings(BaseSettings):
     def production_requirements(self):
         if self.app_env != "production":
             return self
+        if self.r2_endpoint_url:
+            endpoint = urlsplit(self.r2_endpoint_url)
+            if endpoint.scheme != "https" or not endpoint.hostname or endpoint.username:
+                raise ValueError("Production R2_ENDPOINT_URL must use HTTPS without credentials")
         if len(self.jwt_secret) < 32 or not self.auth_cookie_secure:
             raise ValueError("Production requires a strong JWT_SECRET and secure cookies")
         if not self.cors_origins or any(

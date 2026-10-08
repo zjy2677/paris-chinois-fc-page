@@ -110,3 +110,15 @@ class PlayerLeaderboardsResponse(BaseModel):
     season: Season
     scorers: list[LeaderboardEntry]
     assists: list[LeaderboardEntry]
+
+
+class AttributeInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    label: str = Field(min_length=1, max_length=80)
+    kind: Literal["strength", "weakness"]
+    level: int = Field(ge=1, le=5, strict=True)
+
+
+class AttributeResponse(AttributeInput):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID

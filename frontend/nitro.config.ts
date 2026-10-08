@@ -31,7 +31,7 @@ export default defineConfig({
           proxy: `${apiOrigin}/api/matches`,
           headers: {
             "Cache-Control": "public, max-age=0, must-revalidate",
-            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
             "x-vercel-enable-rewrite-caching": "1",
           },
         },
@@ -39,7 +39,7 @@ export default defineConfig({
           proxy: `${apiOrigin}/api/matches/**`,
           headers: {
             "Cache-Control": "public, max-age=0, must-revalidate",
-            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
             "x-vercel-enable-rewrite-caching": "1",
           },
         },
@@ -47,7 +47,7 @@ export default defineConfig({
           proxy: `${apiOrigin}/api/standings`,
           headers: {
             "Cache-Control": "public, max-age=0, must-revalidate",
-            "CDN-Cache-Control": "public, max-age=600, stale-while-revalidate=86400",
+            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
             "x-vercel-enable-rewrite-caching": "1",
           },
         },

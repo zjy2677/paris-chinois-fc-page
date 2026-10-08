@@ -15,6 +15,7 @@ from ..models import (
     PlayerPhoto,
     SquadMembership,
 )
+from ..photo_storage import queue_deletion, retry_deletions
 from ..schemas import PlayerResponse
 from .schemas import (
     LeaderboardEntry,
@@ -183,14 +184,20 @@ def update(db: Session, player_id: UUID, season: str, body: PlayerUpdate):
     player.display_name, player.active = validated.display_name, validated.active
     player.chinese_name = validated.chinese_name
     player.photo_url = str(validated.photo_url) if validated.photo_url else None
+    retired_keys = []
     if "photo_url" in changes:
         uploaded = db.get(PlayerPhoto, player_id)
         if uploaded is not None:
+            if uploaded.storage_key:
+                queue_deletion(db, uploaded.storage_key)
+                retired_keys.append(uploaded.storage_key)
             db.delete(uploaded)
     player.description = validated.description
     squad.shirt_number, squad.position = validated.shirt_number, validated.position
     squad.alternate_positions = validated.alternate_positions
     commit(db)
+    if retired_keys:
+        retry_deletions(db, retired_keys)
     return response(player, squad, db.get(PlayerPhoto, player_id) is not None)
 
 

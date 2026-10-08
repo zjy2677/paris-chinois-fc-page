@@ -434,3 +434,45 @@ def test_legacy_player_can_be_read_and_given_a_chinese_name(player_client):
     assert edit.status_code == 200
     assert edit.json()["display_name"] == "Existing Player"
     assert client.get(path).json()["chinese_name"] == "老队员"
+
+
+def test_attribute_lifecycle_and_player_scope(player_client):
+    client, db, user = player_client
+    player = client.post("/api/players", json=BODY, headers=ORIGIN).json()
+    path = f"/api/players/{player['id']}/attributes"
+    body = {"label": "Passing", "kind": "strength", "level": 5}
+    created = client.post(path, json=body, headers=ORIGIN)
+    assert created.status_code == 201, created.text
+    tag_id = created.json()["id"]
+    assert client.get(path).json()[0]["label"] == "Passing"
+    wrong = f"/api/players/{uuid4()}/attributes/{tag_id}"
+    assert client.put(wrong, json=body, headers=ORIGIN).status_code == 404
+    assert client.delete(wrong, headers=ORIGIN).status_code == 404
+    updated = client.put(
+        f"{path}/{tag_id}", json={**body, "kind": "weakness", "level": 2}, headers=ORIGIN
+    )
+    assert updated.status_code == 200
+    assert updated.json()["kind"] == "weakness"
+    assert updated.json()["level"] == 2
+    assert client.delete(f"{path}/{tag_id}", headers=ORIGIN).status_code == 204
+    assert client.get(path).json() == []
+    assert client.get(f"/api/players/{uuid4()}/attributes").status_code == 404
+
+
+@pytest.mark.parametrize("role", ["user", "player", None])
+def test_attribute_mutations_require_admin(player_client, role):
+    client, db, user = player_client
+    player = client.post("/api/players", json=BODY, headers=ORIGIN).json()
+    path = f"/api/players/{player['id']}/attributes"
+    body = {"label": "Passing", "kind": "strength", "level": 3}
+    tag_id = client.post(path, json=body, headers=ORIGIN).json()["id"]
+    if role is None:
+        client.cookies.clear()
+    else:
+        user.role = role
+        db.flush()
+    expected = 401 if role is None else 403
+    assert client.get(path).status_code == 200
+    assert client.post(path, json=body, headers=ORIGIN).status_code == expected
+    assert client.put(f"{path}/{tag_id}", json=body, headers=ORIGIN).status_code == expected
+    assert client.delete(f"{path}/{tag_id}", headers=ORIGIN).status_code == expected

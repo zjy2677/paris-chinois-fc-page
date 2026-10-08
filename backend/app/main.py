@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth.router import router as auth_router
 from .blog import router as blog_router
 from .config import get_settings
+from .docs import router as docs_router
 from .goals.router import router as goals_router
 from .guestbook import router as guestbook_router
 from .media import router as media_router
@@ -11,7 +12,14 @@ from .players.router import router as players_router
 from .profile import router as profile_router
 from .routers import router
 
-app = FastAPI(title="Paris Chinois FC API", version="0.1.0")
+app = FastAPI(
+    title="Paris Chinois FC API",
+    version="0.1.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+app.include_router(docs_router)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

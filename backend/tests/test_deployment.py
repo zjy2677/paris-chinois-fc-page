@@ -7,6 +7,7 @@ def production(**overrides):
     values = dict(
         app_env="production",
         database_url="postgresql://user:fake@ep-example-pooler.neon.tech/neondb?sslmode=require",
+        database_migration_url=None,
         jwt_secret="test-only-long-secret-that-is-not-real",
         auth_cookie_secure=True,
         cors_origins=["https://paris-chinois-fc.com"],
@@ -33,8 +34,17 @@ def test_neon_url_uses_installed_driver_and_preserves_tls():
         {"cors_origins": ["https://example.com/path"]},
         {"database_url": "postgresql://user:fake@db/db"},
         {"database_migration_url": "postgresql://user:fake@db/db?sslmode=disable"},
+        {"r2_endpoint_url": "http://account.r2.cloudflarestorage.com"},
+        {"r2_endpoint_url": "https:///missing-host"},
     ],
 )
 def test_unsafe_production_configuration_rejected(values):
     with pytest.raises(ValidationError):
         production(**values)
+
+
+def test_production_allows_secure_r2_and_development_allows_local_emulator():
+    assert production(r2_endpoint_url="https://account.r2.cloudflarestorage.com")
+    assert Settings(
+        _env_file=None, database_url="sqlite://", r2_endpoint_url="http://localhost:9000"
+    )

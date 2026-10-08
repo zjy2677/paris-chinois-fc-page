@@ -1,6 +1,20 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "attributes.save": "保存标签",
+  "attributes.title": "球员特点",
+  "attributes.add": "添加标签",
+  "attributes.strength": "优点",
+  "attributes.weakness": "弱点",
+  "attributes.level": "{level}/5 级",
+  "attributes.levels": "特点程度",
+  "attributes.hint": "等级越高，代表优势越突出或弱点越明显。由俱乐部管理员评定。",
+  "attributes.empty": "暂无标签",
+  "attributes.label": "特点名称",
+  "attributes.kind": "类别",
+  "attributes.remove": "删除",
+  "attributes.confirmRemove": "确认删除",
+
   "profile.label": "球员档案",
   "profile.description": "球员简介",
   "profile.back": "返回球队阵容",
