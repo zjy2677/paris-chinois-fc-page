@@ -1,6 +1,7 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "attributes.save": "保存标签",
   "attributes.title": "球员特点",
   "attributes.add": "添加标签",
   "attributes.strength": "优点",

@@ -1,6 +1,7 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "attributes.save": "Enregistrer l’étiquette",
   "attributes.title": "Caractéristiques du joueur",
   "attributes.add": "Ajouter une étiquette",
   "attributes.strength": "Points forts",

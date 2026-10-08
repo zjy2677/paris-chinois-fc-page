@@ -1,4 +1,5 @@
 export const en = {
+  "attributes.save": "Save tag",
   "attributes.title": "Player attributes",
   "attributes.add": "Add tag",
   "attributes.strength": "Strengths",

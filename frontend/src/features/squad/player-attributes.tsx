@@ -214,7 +214,7 @@ export function PlayerAttributes({ playerId }: { playerId: string }) {
             </fieldset>
             <div className="flex gap-3">
               <Button type="submit" disabled={!draft.label.trim()}>
-                {t(mutation.isPending ? "squad.saving" : "squad.save")}
+                {t(mutation.isPending ? "squad.saving" : "attributes.save")}
               </Button>
               <Button
                 type="button"
