@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     def production_requirements(self):
         if self.app_env != "production":
             return self
+        if self.r2_endpoint_url:
+            endpoint = urlsplit(self.r2_endpoint_url)
+            if endpoint.scheme != "https" or not endpoint.hostname or endpoint.username:
+                raise ValueError("Production R2_ENDPOINT_URL must use HTTPS without credentials")
         if len(self.jwt_secret) < 32 or not self.auth_cookie_secure:
             raise ValueError("Production requires a strong JWT_SECRET and secure cookies")
         if not self.cors_origins or any(

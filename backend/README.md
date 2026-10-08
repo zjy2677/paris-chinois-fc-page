@@ -1,5 +1,36 @@
 # Backend and ETL v1
 
+## R2 photo cleanup and rollback
+
+Uploads use a new object key for every version. The database commits the new photo
+reference before the previous object is removed. Failed database writes compensate
+by deleting the new upload. Failed object deletions remain in `storage_deletions`,
+including when R2 is temporarily disabled and an upload falls back to database bytes.
+Changing a player's photo to an external URL uses the same cleanup queue.
+
+After restoring R2 access, run from the repository root with the backend environment:
+
+```sh
+backend/.venv/bin/python -m app.photo_storage
+```
+
+This retries up to 100 pending deletions; repeat until `storage_deletions` is empty.
+Normal requests attempt only their own cleanup, and do not scan unrelated bucket objects.
+If both the database and R2 are unavailable during upload compensation, the exact orphan
+keys are logged for manual cleanup. A process crash between PUT and commit can also leave
+an orphan; reconcile bucket inventory against all three photo tables before removing it.
+
+### R2 rollback
+
+Pause photo writes and back up the database before downgrading. Restore every photo's
+`data` bytes from its `storage_key` in R2 for `media_assets`, `player_photos`, and
+`user_avatars`, verifying content type, image integrity, and size before committing.
+Keep the R2 objects until the restored application is verified. Drain pending deletions
+before downgrading the cleanup migration. The R2 migration deliberately refuses to
+downgrade while any photo has NULL `data`; it never silently drops R2-only photos.
+
+Production `R2_ENDPOINT_URL` must use HTTPS. Storage credentials remain backend-only.
+
 FastAPI serves PostgreSQL records. SQLAlchemy models define tables; Alembic owns schema
 changes. `app/routers.py` handles HTTP, `app/schemas.py` defines public payloads,
 `app/services.py` contains queries, and `app/database.py` supplies a session per request.

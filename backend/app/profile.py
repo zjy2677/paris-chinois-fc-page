@@ -2,9 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from .auth.dependencies import DB, current_user, throttle, trusted_origin
 from .models import User, UserAvatar
+from .photo_storage import photo_transaction
 from .storage import StorageUnavailable, get_storage
 
 router = APIRouter(prefix="/api/profile", tags=["Profile"])
@@ -63,40 +65,35 @@ async def upload_avatar(request: Request, db: DB, user: Annotated[User, Depends(
     if not data:
         raise HTTPException(400, "Profile picture is required")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
-    storage = get_storage()
-    if storage.configured and not storage.enabled:
-        raise HTTPException(503, "R2 storage configuration is incomplete")
-    avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
-    storage_key = f"avatars/{user.id}" if storage.enabled else None
-    if storage.enabled:
-        try:
-            storage.put(storage_key, data, content_type)
-        except StorageUnavailable as error:
-            raise HTTPException(503, "Media storage is unavailable") from error
-    if avatar is None:
-        db.add(
-            UserAvatar(
-                user_id=user.id,
-                content_type=content_type,
-                data=None if storage.enabled else data,
-                storage_key=storage_key,
+    await run_in_threadpool(save_avatar, db, user.id, content_type, data)
+
+
+def save_avatar(db, user_id, content_type, data):
+    db.get(User, user_id, with_for_update=True)
+    avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user_id))
+    with photo_transaction(db) as write:
+        storage_key = write.put(f"avatars/{user_id}", data, content_type)
+        if avatar is None:
+            db.add(
+                UserAvatar(
+                    user_id=user_id,
+                    content_type=content_type,
+                    data=None if storage_key else data,
+                    storage_key=storage_key,
+                )
             )
-        )
-    else:
-        avatar.content_type = content_type
-        avatar.data = None if storage.enabled else data
-        avatar.storage_key = storage_key
-    db.commit()
+        else:
+            write.retire(avatar.storage_key)
+            avatar.content_type = content_type
+            avatar.data = None if storage_key else data
+            avatar.storage_key = storage_key
 
 
 @router.delete("/avatar", dependencies=mutation, status_code=204)
 def delete_avatar(db: DB, user: Annotated[User, Depends(current_user)]):
+    db.get(User, user.id, with_for_update=True)
     avatar = db.scalar(select(UserAvatar).where(UserAvatar.user_id == user.id))
     if avatar is not None:
-        if avatar.storage_key:
-            try:
-                get_storage().delete(avatar.storage_key)
-            except StorageUnavailable as error:
-                raise HTTPException(503, "Media storage is unavailable") from error
-        db.delete(avatar)
-        db.commit()
+        with photo_transaction(db) as write:
+            write.retire(avatar.storage_key)
+            db.delete(avatar)

@@ -26,6 +26,14 @@ class Identity:
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
 
 
+class StorageDeletion(Base):
+    """Objects no longer referenced by photos, retained until R2 deletion succeeds."""
+
+    __tablename__ = "storage_deletions"
+    storage_key: Mapped[str] = mapped_column(String(512), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Team(Identity, Base):
     __tablename__ = "teams"
     fla_team_id: Mapped[int | None] = mapped_column(unique=True)

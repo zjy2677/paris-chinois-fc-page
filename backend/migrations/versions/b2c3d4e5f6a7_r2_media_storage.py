@@ -22,6 +22,17 @@ def upgrade():
 
 
 def downgrade():
+    # Check every table before changing any columns; also works with --sql.
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM user_avatars WHERE data IS NULL)
+                OR EXISTS (SELECT 1 FROM player_photos WHERE data IS NULL)
+                OR EXISTS (SELECT 1 FROM media_assets WHERE data IS NULL)
+            THEN
+                RAISE EXCEPTION 'Cannot downgrade R2 storage: restore all photo data bytes from R2 first. See backend/README.md, R2 rollback.';
+            END IF;
+        END $$;
+    """)
     for table in ("user_avatars", "player_photos", "media_assets"):
         op.alter_column(
             table,

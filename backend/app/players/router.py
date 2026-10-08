@@ -2,10 +2,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from .. import services
 from ..auth.dependencies import DB, no_store, require_role, throttle, trusted_origin
 from ..models import Player, PlayerPhoto
+from ..photo_storage import photo_transaction
 from ..profile import MAX_AVATAR_BYTES, avatar_type
 from ..schemas import PlayerResponse
 from ..storage import StorageUnavailable, get_storage
@@ -68,9 +70,6 @@ def update_player(
 
 @router.put("/players/{player_id}/photo", status_code=204, dependencies=mutation)
 async def upload_player_photo(player_id: UUID, request: Request, db: DB):
-    player = db.get(Player, player_id, with_for_update=True)
-    if player is None:
-        raise HTTPException(404, "Player not found")
     declared_size = request.headers.get("content-length")
     if declared_size:
         try:
@@ -87,31 +86,31 @@ async def upload_player_photo(player_id: UUID, request: Request, db: DB):
     if not data:
         raise HTTPException(400, "Player photo is required")
     content_type = avatar_type(request.headers.get("content-type", ""), data)
-    storage = get_storage()
-    if storage.configured and not storage.enabled:
-        raise HTTPException(503, "R2 storage configuration is incomplete")
+    await run_in_threadpool(save_player_photo, db, player_id, content_type, data)
+
+
+def save_player_photo(db, player_id, content_type, data):
+    player = db.get(Player, player_id, with_for_update=True)
+    if player is None:
+        raise HTTPException(404, "Player not found")
     photo = db.scalar(select(PlayerPhoto).where(PlayerPhoto.player_id == player_id))
-    storage_key = f"players/{player_id}" if storage.enabled else None
-    if storage.enabled:
-        try:
-            storage.put(storage_key, data, content_type)
-        except StorageUnavailable as error:
-            raise HTTPException(503, "Media storage is unavailable") from error
-    if photo is None:
-        db.add(
-            PlayerPhoto(
-                player_id=player_id,
-                content_type=content_type,
-                data=None if storage.enabled else data,
-                storage_key=storage_key,
+    with photo_transaction(db) as write:
+        storage_key = write.put(f"players/{player_id}", data, content_type)
+        if photo is None:
+            db.add(
+                PlayerPhoto(
+                    player_id=player_id,
+                    content_type=content_type,
+                    data=None if storage_key else data,
+                    storage_key=storage_key,
+                )
             )
-        )
-    else:
-        photo.content_type = content_type
-        photo.data = None if storage.enabled else data
-        photo.storage_key = storage_key
-    player.photo_url = None
-    db.commit()
+        else:
+            write.retire(photo.storage_key)
+            photo.content_type = content_type
+            photo.data = None if storage_key else data
+            photo.storage_key = storage_key
+        player.photo_url = None
 
 
 @router.delete("/players/{player_id}", status_code=204, dependencies=mutation)

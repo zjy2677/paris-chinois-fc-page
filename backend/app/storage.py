@@ -3,6 +3,7 @@
 from functools import lru_cache
 
 import boto3
+from botocore.config import Config
 
 from .config import Settings, get_settings
 
@@ -49,6 +50,11 @@ class R2Storage:
                 aws_access_key_id=self.settings.r2_access_key_id,
                 aws_secret_access_key=self.settings.r2_secret_access_key,
                 region_name="auto",
+                config=Config(
+                    connect_timeout=3,
+                    read_timeout=10,
+                    retries={"mode": "standard", "total_max_attempts": 2},
+                ),
             )
         return self._client
 
