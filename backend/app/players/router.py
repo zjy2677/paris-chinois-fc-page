@@ -11,8 +11,15 @@ from ..photo_storage import photo_transaction
 from ..profile import MAX_AVATAR_BYTES, avatar_type
 from ..schemas import PlayerResponse
 from ..storage import StorageUnavailable, get_storage
-from . import service
-from .schemas import PlayerCreate, PlayerLeaderboardsResponse, PlayerProfileResponse, PlayerUpdate
+from . import attributes, service
+from .schemas import (
+    AttributeInput,
+    AttributeResponse,
+    PlayerCreate,
+    PlayerLeaderboardsResponse,
+    PlayerProfileResponse,
+    PlayerUpdate,
+)
 
 router = APIRouter(prefix="/api", tags=["Player management"])
 admin = [Depends(require_role("admin")), Depends(no_store)]
@@ -117,3 +124,34 @@ def save_player_photo(db, player_id, content_type, data):
 def deactivate_player(player_id: UUID, db: DB):
     """Deactivate a player across seasons after the admin mutation checks pass."""
     service.deactivate(db, player_id)
+
+
+@router.get("/players/{player_id}/attributes", response_model=list[AttributeResponse])
+def player_attributes(player_id: UUID, db: DB):
+    return attributes.list_attributes(db, player_id)
+
+
+@router.post(
+    "/players/{player_id}/attributes",
+    response_model=AttributeResponse,
+    status_code=201,
+    dependencies=mutation,
+)
+def create_attribute(player_id: UUID, body: AttributeInput, db: DB):
+    return attributes.create(db, player_id, body)
+
+
+@router.put(
+    "/players/{player_id}/attributes/{attribute_id}",
+    response_model=AttributeResponse,
+    dependencies=mutation,
+)
+def update_attribute(player_id: UUID, attribute_id: UUID, body: AttributeInput, db: DB):
+    return attributes.update(db, player_id, attribute_id, body)
+
+
+@router.delete(
+    "/players/{player_id}/attributes/{attribute_id}", status_code=204, dependencies=mutation
+)
+def delete_attribute(player_id: UUID, attribute_id: UUID, db: DB):
+    attributes.delete(db, player_id, attribute_id)
