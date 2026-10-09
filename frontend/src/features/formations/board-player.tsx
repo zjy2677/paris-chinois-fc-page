@@ -8,9 +8,19 @@ export function PlayerStats({ goals, assists }: { goals: number; assists: number
   const { t } = useI18n();
   return (
     <span className="flex justify-center gap-2 text-xs">
-      {goals > 0 && <span aria-label={t("formation.goals", { count: goals })}>⚽ {goals}</span>}
+      {goals > 0 && (
+        <span aria-label={t(goals === 1 ? "formation.goal" : "formation.goals", { count: goals })}>
+          ⚽ {goals}
+        </span>
+      )}
       {assists > 0 && (
-        <span aria-label={t("formation.assists", { count: assists })}>🎯 {assists}</span>
+        <span
+          aria-label={t(assists === 1 ? "formation.assist" : "formation.assists", {
+            count: assists,
+          })}
+        >
+          🎯 {assists}
+        </span>
       )}
     </span>
   );

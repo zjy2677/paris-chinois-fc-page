@@ -22,7 +22,9 @@ export const fr = {
   "formation.empty": "Aucune composition enregistrée.",
   "formation.countdown": "Coup d’envoi dans {days}j {hours}h {minutes}m {seconds}s",
   "formation.awaitingSchedule": "Horaire du match à confirmer",
+  "formation.goal": "{count} but",
   "formation.goals": "{count} buts",
+  "formation.assist": "{count} passe décisive",
   "formation.assists": "{count} passes décisives",
 
   "attributes.save": "Enregistrer l’étiquette",

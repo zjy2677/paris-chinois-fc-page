@@ -20,7 +20,9 @@ export const en = {
   "formation.empty": "No squad saved yet.",
   "formation.countdown": "Kickoff in {days}d {hours}h {minutes}m {seconds}s",
   "formation.awaitingSchedule": "Awaiting match schedule",
+  "formation.goal": "{count} goal",
   "formation.goals": "{count} goals",
+  "formation.assist": "{count} assist",
   "formation.assists": "{count} assists",
 
   "attributes.save": "Save tag",

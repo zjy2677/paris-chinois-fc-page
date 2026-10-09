@@ -21,7 +21,9 @@ export const zh = {
   "formation.empty": "尚未保存本场阵容。",
   "formation.countdown": "距开球 {days}天 {hours}时 {minutes}分 {seconds}秒",
   "formation.awaitingSchedule": "等待确认比赛时间",
+  "formation.goal": "{count} 个进球",
   "formation.goals": "{count} 个进球",
+  "formation.assist": "{count} 次助攻",
   "formation.assists": "{count} 次助攻",
 
   "attributes.save": "保存标签",
