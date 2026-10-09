@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -459,3 +460,27 @@ class MatchVideo(Identity, Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class FormationPlacement(Base):
+    """One player per match; coordinates are percentages of the pitch."""
+
+    __tablename__ = "formation_placements"
+    __table_args__ = (
+        CheckConstraint("placement IN ('pitch','bench')", name="formation_placement"),
+        CheckConstraint(
+            "(placement = 'bench' AND x IS NULL AND y IS NULL) OR "
+            "(placement = 'pitch' AND x IS NOT NULL AND y IS NOT NULL "
+            "AND x BETWEEN 0 AND 100 AND y BETWEEN 0 AND 100)",
+            name="formation_coordinates",
+        ),
+    )
+    match_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("matches.id", ondelete="CASCADE"), primary_key=True
+    )
+    player_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), primary_key=True
+    )
+    placement: Mapped[str] = mapped_column(String(10))
+    x: Mapped[float | None] = mapped_column(Float)
+    y: Mapped[float | None] = mapped_column(Float)

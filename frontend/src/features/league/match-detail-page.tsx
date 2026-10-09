@@ -1,6 +1,7 @@
+import { TacticalBoard } from "@/features/formations/tactical-board";
 import { Link } from "@tanstack/react-router";
 import { Play } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import { PageIntro } from "@/components/layout/page-intro";
@@ -19,18 +20,21 @@ export function MatchDetailPage({ id }: { id: string }) {
   const { t, language } = useI18n();
   const query = useMatch(id);
   const account = useAccount();
+  const [hydrated, setHydrated] = useState(false);
+  // Cached client queries must not replace the server loading view during hydration.
+  useEffect(() => setHydrated(true), []);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPending, setPhotoPending] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const uploading = useRef(false);
-  if (query.isPending || query.isError) {
+  if (!hydrated || query.isPending || query.isError) {
     const missing = query.error instanceof ApiError && [404, 422].includes(query.error.status);
     return (
       <div className="site-container py-24">
         <Link to="/league">{t("match.back")}</Link>
         <DataState
-          loading={query.isPending}
+          loading={!hydrated || query.isPending}
           error={query.isError && !missing}
           empty="Page not found"
           retry={() => void query.refetch()}
@@ -58,6 +62,7 @@ export function MatchDetailPage({ id }: { id: string }) {
         <div className="mt-8">
           <MatchCard match={match} showDetails={false} />
         </div>
+        <TacticalBoard match={match} />
         {account.data?.role === "admin" && <MatchRecordEditor match={match} />}
         {match.events.length > 0 && (
           <section className="mt-10" aria-labelledby="match-events">
