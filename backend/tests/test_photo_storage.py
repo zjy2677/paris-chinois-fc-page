@@ -81,6 +81,57 @@ def fail_next_commit(db):
     event.listen(db, "before_commit", fail, once=True)
 
 
+@pytest.mark.parametrize("status_code", [403, 404, 409, 503])
+def test_photo_transaction_http_failure_diagnostics(status_code, monkeypatch, caplog):
+    db = Mock(spec=Session)
+    queue_deletion = Mock()
+    retry_deletions = Mock()
+    monkeypatch.setattr(photo_storage, "queue_deletion", queue_deletion)
+    monkeypatch.setattr(photo_storage, "retry_deletions", retry_deletions)
+    error = HTTPException(status_code, "private response detail")
+    cause = StorageUnavailable("private storage detail")
+
+    with pytest.raises(HTTPException) as raised:
+        with photo_storage.photo_transaction(db) as write:
+            write.uploaded.append("new/photo")
+            raise error from cause
+
+    assert raised.value is error
+    assert raised.value.__cause__ is cause
+    db.rollback.assert_called_once_with()
+    queue_deletion.assert_called_once_with(db, "new/photo")
+    db.commit.assert_called_once_with()
+    retry_deletions.assert_called_once_with(db, ["new/photo"])
+    diagnostics = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "app.photo_storage"
+        and record.getMessage().startswith("Photo transaction failed")
+    ]
+    assert diagnostics == (
+        ["Photo transaction failed exception_type=HTTPException cause_type=StorageUnavailable"]
+        if status_code >= 500
+        else []
+    )
+    assert "private" not in caplog.text
+
+
+def test_photo_transaction_database_failure_diagnostics(caplog):
+    db = Mock(spec=Session)
+    error = RuntimeError("private database detail")
+    db.commit.side_effect = error
+
+    with pytest.raises(RuntimeError) as raised:
+        with photo_storage.photo_transaction(db):
+            pass
+
+    assert raised.value is error
+    db.commit.assert_called_once_with()
+    db.rollback.assert_called_once_with()
+    assert "Photo transaction failed exception_type=RuntimeError cause_type=none" in caplog.text
+    assert "private database detail" not in caplog.text
+
+
 @pytest.fixture(params=["avatar", "player"])
 def existing_photo(request, db, storage):
     owner_id = uuid4()
