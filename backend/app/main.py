@@ -5,6 +5,7 @@ from .auth.router import router as auth_router
 from .blog import router as blog_router
 from .config import get_settings
 from .docs import router as docs_router
+from .formations.router import router as formations_router
 from .goals.router import router as goals_router
 from .guestbook import router as guestbook_router
 from .media import router as media_router
@@ -37,3 +38,5 @@ app.include_router(profile_router)
 app.include_router(goals_router)
 
 app.include_router(players_router)
+
+app.include_router(formations_router)
