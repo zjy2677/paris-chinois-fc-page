@@ -367,3 +367,31 @@ cached until the browser session is closed; use a private window on shared devic
 This protects documentation only. Public data endpoints remain public, and existing
 API authorization is unchanged. Documentation login does not create an API session
 or grant Swagger's requests permission to perform admin mutations.
+
+
+## Match tactical boards
+
+`GET /api/formations/{match_id}` reads the shared board. Before `matches.status = final`,
+only authenticated `player` and `admin` accounts can read it. Final boards are public.
+`PUT /api/formations/{match_id}` replaces the complete placement list for player/admin
+accounts with a trusted Origin. Final and cancelled matches reject writes. A match row
+lock serializes saves; the last saved formation wins. Responses use `no-store`, and the
+endpoint is outside the public `/api/matches/**` CDN cache rule.
+
+The `formation_placements` table has a composite match/player primary key, a pitch/bench
+placement and nullable x/y percentages. Bench coordinates must be null; pitch coordinates
+must be finite and between 0 and 100. A save accepts active players in the match's season
+and already-saved players (including subsequently deactivated players). Final responses
+include only saved players. Profiles remain linked to existing player records, rather than
+copying personal information or introducing a second statistics table. Goal/assist counts
+reuse the existing match-event/legacy-goal aggregation.
+
+The countdown is presentation only: it stops at zero, while publication and edit locking
+follow the authoritative match status. Consequently, publication waits for the ETL or admin
+to mark a match final. Boards refresh their status every 30 seconds while the page is active.
+There is no automatic time-based finalization, realtime collaboration or revision history.
+Manual Save is required. A hand-drawn SVG pitch has no external asset/licensing dependency.
+
+Migration: `f6a7b8c9d0e1` follows `e5f6a7b8c9d0`. Apply through the normal Alembic deployment
+process before using the endpoints. Focused tests: `pytest backend/tests/test_formations.py`
+and `bun test ./tests/formation.test.tsx` from `frontend`.

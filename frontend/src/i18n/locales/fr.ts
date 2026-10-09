@@ -1,6 +1,30 @@
 import type { Messages } from "../translations";
 
 export const fr = {
+  "formation.title": "Tableau tactique",
+  "formation.final": "Composition finale",
+  "formation.bench": "Remplaçants",
+  "formation.available": "Joueurs disponibles",
+  "formation.instructions":
+    "Sélectionnez un joueur, puis touchez le terrain ou utilisez les boutons. Vous pouvez aussi déplacer les joueurs par glisser-déposer ; les flèches ajustent leur position.",
+  "formation.place": "Placer sur le terrain",
+  "formation.toBench": "Mettre sur le banc",
+  "formation.remove": "Retirer de la sélection",
+  "formation.save": "Enregistrer la composition",
+  "formation.saving": "Enregistrement…",
+  "formation.saved": "Composition enregistrée.",
+  "formation.unsaved": "Modifications non enregistrées",
+  "formation.saveError":
+    "Échec de l’enregistrement. Actualisez le tableau et vérifiez si le match est terminé.",
+  "formation.loadError": "Impossible de charger la composition.",
+  "formation.retry": "Réessayer",
+  "formation.loading": "Chargement de la composition…",
+  "formation.empty": "Aucune composition enregistrée.",
+  "formation.countdown": "Coup d’envoi dans {days}j {hours}h {minutes}m {seconds}s",
+  "formation.awaitingSchedule": "Horaire du match à confirmer",
+  "formation.goals": "{count} buts",
+  "formation.assists": "{count} passes décisives",
+
   "attributes.save": "Enregistrer l’étiquette",
   "attributes.title": "Caractéristiques du joueur",
   "attributes.add": "Ajouter une étiquette",

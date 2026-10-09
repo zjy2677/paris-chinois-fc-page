@@ -1,6 +1,29 @@
 import type { Messages } from "../translations";
 
 export const zh = {
+  "formation.title": "战术板",
+  "formation.final": "本场阵容",
+  "formation.bench": "替补席",
+  "formation.available": "可选球员",
+  "formation.instructions":
+    "选择球员后点击球场或使用下方按钮，也可拖动球员。方向键可微调场上位置。",
+  "formation.place": "放到球场",
+  "formation.toBench": "移至替补席",
+  "formation.remove": "移出阵容",
+  "formation.save": "保存阵容",
+  "formation.saving": "保存中…",
+  "formation.saved": "阵容已保存。",
+  "formation.unsaved": "有未保存的更改",
+  "formation.saveError": "保存失败。请刷新战术板并确认比赛是否已结束。",
+  "formation.loadError": "无法加载阵容。",
+  "formation.retry": "重试",
+  "formation.loading": "正在加载阵容…",
+  "formation.empty": "尚未保存本场阵容。",
+  "formation.countdown": "距开球 {days}天 {hours}时 {minutes}分 {seconds}秒",
+  "formation.awaitingSchedule": "等待确认比赛时间",
+  "formation.goals": "{count} 个进球",
+  "formation.assists": "{count} 次助攻",
+
   "attributes.save": "保存标签",
   "attributes.title": "球员特点",
   "attributes.add": "添加标签",

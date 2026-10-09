@@ -1,4 +1,28 @@
 export const en = {
+  "formation.title": "Tactical board",
+  "formation.final": "Final squad",
+  "formation.bench": "Substitutes",
+  "formation.available": "Available players",
+  "formation.instructions":
+    "Select a player, then tap the pitch or use the placement buttons. You can also drag players; arrow keys adjust pitch positions.",
+  "formation.place": "Place on pitch",
+  "formation.toBench": "Move to bench",
+  "formation.remove": "Remove from squad",
+  "formation.save": "Save formation",
+  "formation.saving": "Saving…",
+  "formation.saved": "Formation saved.",
+  "formation.unsaved": "Unsaved changes",
+  "formation.saveError":
+    "Unable to save. Refresh the board and check whether the match has finished.",
+  "formation.loadError": "Unable to load the formation.",
+  "formation.retry": "Retry",
+  "formation.loading": "Loading formation…",
+  "formation.empty": "No squad saved yet.",
+  "formation.countdown": "Kickoff in {days}d {hours}h {minutes}m {seconds}s",
+  "formation.awaitingSchedule": "Awaiting match schedule",
+  "formation.goals": "{count} goals",
+  "formation.assists": "{count} assists",
+
   "attributes.save": "Save tag",
   "attributes.title": "Player attributes",
   "attributes.add": "Add tag",
