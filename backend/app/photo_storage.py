@@ -76,7 +76,14 @@ def photo_transaction(db: Session):
     try:
         yield write
         db.commit()
-    except Exception:
+    except Exception as error:
+        # Log before cleanup so a secondary failure cannot obscure the original type.
+        if not isinstance(error, HTTPException) or error.status_code >= 500:
+            logger.error(
+                "Photo transaction failed exception_type=%s cause_type=%s",
+                type(error).__name__,
+                type(error.__cause__).__name__ if error.__cause__ else "none",
+            )
         db.rollback()
         if write.uploaded:
             try:

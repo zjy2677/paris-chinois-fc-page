@@ -1,11 +1,36 @@
 """Small S3-compatible storage adapter for Cloudflare R2 media objects."""
 
+import logging
+import re
 from functools import lru_cache
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 from .config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
+
+
+def log_storage_error(operation: str, error: Exception) -> None:
+    """Log diagnostic identifiers only, never raw messages, URLs, or credentials."""
+    code = "unknown"
+    status = None
+    if isinstance(error, ClientError):
+        candidate = error.response.get("Error", {}).get("Code", "")
+        if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", candidate):
+            code = candidate
+        candidate_status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if type(candidate_status) is int:
+            status = candidate_status
+    logger.error(
+        "R2 operation=%s exception_type=%s code=%s http_status=%s",
+        operation,
+        type(error).__name__,
+        code,
+        status,
+    )
 
 
 class StorageUnavailable(RuntimeError):
@@ -67,6 +92,7 @@ class R2Storage:
                 ContentType=content_type,
             )
         except Exception as error:
+            log_storage_error("put", error)
             raise StorageUnavailable("R2 upload failed") from error
 
     def get(self, key: str) -> bytes:
@@ -78,12 +104,14 @@ class R2Storage:
             finally:
                 body.close()
         except Exception as error:
+            log_storage_error("get", error)
             raise StorageUnavailable("R2 read failed") from error
 
     def delete(self, key: str) -> None:
         try:
             self.client.delete_object(Bucket=self.settings.r2_bucket_name, Key=key)
         except Exception as error:
+            log_storage_error("delete", error)
             raise StorageUnavailable("R2 delete failed") from error
 
 
