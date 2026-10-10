@@ -4,6 +4,7 @@ import { PageIntro } from "@/components/layout/page-intro";
 import { assets } from "@/config/assets";
 import { useAccount } from "@/features/auth/auth-api";
 import { useI18n } from "@/i18n/i18n-provider";
+import { AlbumAdminControls } from "./album-admin-controls";
 import { PhotoGrid } from "./photo-grid";
 import { useAlbums, useCreateAlbum } from "./media-api";
 import { PhotoUploadError, uploadPhotos } from "./upload-photos";
@@ -156,7 +157,12 @@ export function GalleryPage() {
               ) : (
                 <div className="mb-7" />
               )}
-              <PhotoGrid photos={album.photos} />
+              {account.data?.role === "admin" ? <AlbumAdminControls album={album} /> : null}
+              <PhotoGrid
+                photos={album.photos}
+                albumId={album.id}
+                canManage={account.data?.role === "admin"}
+              />
             </article>
           ))}
         </div>

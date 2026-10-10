@@ -2,7 +2,7 @@ import urllib.parse
 import warnings
 from datetime import datetime
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -33,6 +33,7 @@ class PhotoResponse(BaseModel):
     url: str
     caption: str | None
     alt_text: str
+    use_as_background: bool = False
 
 
 class AlbumInput(BaseModel):
@@ -42,21 +43,47 @@ class AlbumInput(BaseModel):
     event_date: datetime | None = None
 
 
+class AlbumUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    title: str | None = Field(default=None, min_length=2, max_length=180)
+    description: str | None = Field(default=None, max_length=2000)
+    event_date: datetime | None = None
+    background_enabled: bool | None = None
+    background_interval_seconds: int | None = Field(default=None, ge=3, le=30)
+    background_transition: Literal["fade", "slide", "zoom"] | None = None
+
+
+class AlbumPhotoUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    use_as_background: bool
+
+
 class AlbumResponse(BaseModel):
     id: UUID
     title: str
     description: str | None
     event_date: datetime | None
+    background_enabled: bool
+    background_interval_seconds: int
+    background_transition: Literal["fade", "slide", "zoom"]
     created_at: datetime
     photos: list[PhotoResponse]
 
 
-def photo_response(asset: MediaAsset) -> PhotoResponse:
+class BackgroundResponse(BaseModel):
+    album_id: UUID | None
+    interval_seconds: int = 8
+    transition: Literal["fade", "slide", "zoom"] = "fade"
+    photos: list[PhotoResponse]
+
+
+def photo_response(asset: MediaAsset, use_as_background: bool = False) -> PhotoResponse:
     return PhotoResponse(
         id=asset.id,
         url=f"/api/media/photos/{asset.id}/content",
         caption=asset.caption,
         alt_text=asset.alt_text,
+        use_as_background=use_as_background,
     )
 
 
@@ -119,8 +146,8 @@ def metadata(value: str | None) -> str | None:
 
 
 def album_response(db: DB, album: PhotoAlbum) -> AlbumResponse:
-    photos = db.scalars(
-        select(MediaAsset)
+    photos = db.execute(
+        select(MediaAsset, AlbumPhoto.use_as_background)
         .join(AlbumPhoto, AlbumPhoto.media_id == MediaAsset.id)
         .where(AlbumPhoto.album_id == album.id, MediaAsset.status == "visible")
         .order_by(AlbumPhoto.position, MediaAsset.created_at)
@@ -130,8 +157,11 @@ def album_response(db: DB, album: PhotoAlbum) -> AlbumResponse:
         title=album.title,
         description=album.description,
         event_date=album.event_date,
+        background_enabled=album.background_enabled,
+        background_interval_seconds=album.background_interval_seconds,
+        background_transition=album.background_transition,
         created_at=album.created_at,
-        photos=[photo_response(photo) for photo in photos],
+        photos=[photo_response(photo, selected) for photo, selected in photos],
     )
 
 
@@ -141,6 +171,34 @@ def albums(db: DB):
         select(PhotoAlbum).order_by(PhotoAlbum.event_date.desc(), PhotoAlbum.created_at.desc())
     ).all()
     return [album_response(db, album) for album in rows]
+
+
+@router.get("/backgrounds", response_model=BackgroundResponse)
+def backgrounds(db: DB):
+    row = db.scalar(
+        select(PhotoAlbum)
+        .where(PhotoAlbum.background_enabled.is_(True))
+        .order_by(PhotoAlbum.updated_at.desc(), PhotoAlbum.created_at.desc())
+        .limit(1)
+    )
+    if row is None:
+        return BackgroundResponse(album_id=None, photos=[])
+    photos = db.scalars(
+        select(MediaAsset)
+        .join(AlbumPhoto, AlbumPhoto.media_id == MediaAsset.id)
+        .where(
+            AlbumPhoto.album_id == row.id,
+            AlbumPhoto.use_as_background.is_(True),
+            MediaAsset.status == "visible",
+        )
+        .order_by(AlbumPhoto.position, MediaAsset.created_at)
+    ).all()
+    return BackgroundResponse(
+        album_id=row.id,
+        interval_seconds=row.background_interval_seconds,
+        transition=row.background_transition,
+        photos=[photo_response(photo, True) for photo in photos],
+    )
 
 
 @router.get("/albums/{album_id}", response_model=AlbumResponse)
@@ -158,6 +216,96 @@ def create_album(body: AlbumInput, db: DB, user: Annotated[User, Depends(require
     db.commit()
     db.refresh(row)
     return album_response(db, row)
+
+
+@router.patch("/albums/{album_id}", response_model=AlbumResponse, dependencies=mutation)
+def update_album(
+    album_id: UUID,
+    body: AlbumUpdate,
+    db: DB,
+    _: Annotated[User, Depends(require_role("admin"))],
+):
+    row = db.get(PhotoAlbum, album_id, with_for_update=True)
+    if row is None:
+        raise HTTPException(404, "Album not found")
+    changes = body.model_dump(exclude_unset=True)
+    required = {
+        "title",
+        "background_enabled",
+        "background_interval_seconds",
+        "background_transition",
+    }
+    if any(changes.get(field) is None for field in required & changes.keys()):
+        raise HTTPException(422, "Required album settings cannot be null")
+    if changes.get("background_enabled"):
+        others = db.scalars(
+            select(PhotoAlbum)
+            .where(PhotoAlbum.id != album_id, PhotoAlbum.background_enabled.is_(True))
+            .with_for_update()
+        ).all()
+        for other in others:
+            other.background_enabled = False
+        db.flush()
+    for field, value in changes.items():
+        setattr(row, field, value)
+    db.commit()
+    db.refresh(row)
+    return album_response(db, row)
+
+
+@router.patch(
+    "/albums/{album_id}/photos/{photo_id}",
+    response_model=PhotoResponse,
+    dependencies=mutation,
+)
+def update_album_photo(
+    album_id: UUID,
+    photo_id: UUID,
+    body: AlbumPhotoUpdate,
+    db: DB,
+    _: Annotated[User, Depends(require_role("admin"))],
+):
+    link = db.get(AlbumPhoto, (album_id, photo_id), with_for_update=True)
+    if link is None:
+        raise HTTPException(404, "Album photo not found")
+    link.use_as_background = body.use_as_background
+    db.commit()
+    asset = db.get(MediaAsset, photo_id)
+    if asset is None:
+        raise HTTPException(404, "Photo not found")
+    return photo_response(asset, link.use_as_background)
+
+
+@router.delete("/albums/{album_id}", status_code=204, dependencies=mutation)
+def delete_album(
+    album_id: UUID,
+    db: DB,
+    _: Annotated[User, Depends(require_role("admin"))],
+):
+    with photo_transaction(db) as write:
+        row = db.get(PhotoAlbum, album_id, with_for_update=True)
+        if row is None:
+            raise HTTPException(404, "Album not found")
+        assets = db.scalars(
+            select(MediaAsset)
+            .join(AlbumPhoto, AlbumPhoto.media_id == MediaAsset.id)
+            .where(AlbumPhoto.album_id == album_id)
+            .with_for_update()
+        ).all()
+        for asset in assets:
+            other_album = db.scalar(
+                select(AlbumPhoto.album_id).where(
+                    AlbumPhoto.media_id == asset.id,
+                    AlbumPhoto.album_id != album_id,
+                )
+            )
+            used_by_other_content = any(
+                (asset.match_id, asset.blog_post_id, asset.guestbook_message_id)
+            )
+            if other_album is None and not used_by_other_content:
+                write.retire(asset.storage_key)
+                db.delete(asset)
+        db.delete(row)
 
 
 def new_asset(

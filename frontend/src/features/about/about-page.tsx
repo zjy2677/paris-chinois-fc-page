@@ -1,20 +1,14 @@
 import { useI18n } from "@/i18n/i18n-provider";
 import { ClubHonours } from "./club-honours";
 import { assets } from "@/config/assets";
+import { BackgroundCarousel } from "@/features/gallery/background-carousel";
 
 export function AboutPage() {
   const { language, t } = useI18n();
   return (
     <>
       <section className="relative isolate overflow-hidden border-b border-border bg-background pb-20 pt-40 md:pb-28 md:pt-52">
-        <img
-          src={assets.about}
-          alt={t("about.photoAlt")}
-          width={3008}
-          height={2000}
-          fetchPriority="high"
-          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
-        />
+        <BackgroundCarousel fallback={assets.about} className="-z-20" priority />
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/90 via-black/65 to-black/30" />
         <div className="site-container">
           <p className="eyebrow text-copper">{t("about.since")}</p>
