@@ -1,3 +1,5 @@
+import { BackgroundCarousel } from "@/features/gallery/background-carousel";
+
 type PageIntroProps = {
   eyebrow?: string;
   title: string;
@@ -10,13 +12,7 @@ export function PageIntro({ eyebrow, title, description, backgroundImage }: Page
     <section className="relative overflow-hidden border-b border-border bg-card pt-44 pb-16 md:pt-52 md:pb-24">
       {backgroundImage && (
         <>
-          <img
-            src={backgroundImage}
-            alt=""
-            aria-hidden="true"
-            fetchPriority="high"
-            className="absolute inset-0 h-full w-full object-cover object-center"
-          />
+          <BackgroundCarousel fallback={backgroundImage} priority />
           <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/45" />
         </>
       )}

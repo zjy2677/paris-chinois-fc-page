@@ -15,6 +15,7 @@ import { MatchRecordEditor } from "./match-record-editor";
 import { HighlightEditor } from "./highlight-editor";
 import { PhotoGrid } from "@/features/gallery/photo-grid";
 import { PhotoUploadError, uploadPhotos } from "@/features/gallery/upload-photos";
+import { MatchRatingsSection } from "@/features/ratings/match-ratings-section";
 
 export function MatchDetailPage({ id }: { id: string }) {
   const { t, language } = useI18n();
@@ -223,6 +224,7 @@ export function MatchDetailPage({ id }: { id: string }) {
             </div>
           )}
         </section>
+        <MatchRatingsSection matchId={match.id} final={match.status === "final"} />
       </div>
     </>
   );

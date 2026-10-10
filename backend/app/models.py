@@ -14,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -316,11 +317,36 @@ class BlogPost(Identity, Base):
 
 class PhotoAlbum(Identity, Base):
     __tablename__ = "photo_albums"
+    __table_args__ = (
+        CheckConstraint(
+            "background_interval_seconds BETWEEN 3 AND 30",
+            name="photo_album_background_interval",
+        ),
+        CheckConstraint(
+            "background_transition IN ('fade','slide','zoom')",
+            name="photo_album_background_transition",
+        ),
+        Index(
+            "uq_photo_albums_single_background",
+            "background_enabled",
+            unique=True,
+            postgresql_where=text("background_enabled IS TRUE"),
+            sqlite_where=text("background_enabled = 1"),
+        ),
+    )
     title: Mapped[str] = mapped_column(String(180))
     description: Mapped[str | None] = mapped_column(Text)
     event_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    background_enabled: Mapped[bool] = mapped_column(default=False, server_default="false")
+    background_interval_seconds: Mapped[int] = mapped_column(Integer, default=8, server_default="8")
+    background_transition: Mapped[str] = mapped_column(
+        String(12), default="fade", server_default="fade"
+    )
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class MediaAsset(Identity, Base):
@@ -359,6 +385,7 @@ class MediaAsset(Identity, Base):
 
 class AlbumPhoto(Base):
     __tablename__ = "album_photos"
+    __table_args__ = (Index("ix_album_photos_media_id", "media_id"),)
     album_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("photo_albums.id", ondelete="CASCADE"), primary_key=True
     )
@@ -366,6 +393,7 @@ class AlbumPhoto(Base):
         ForeignKey("media_assets.id", ondelete="CASCADE"), primary_key=True
     )
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    use_as_background: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
 class GuestbookMessage(Identity, Base):
@@ -484,3 +512,24 @@ class FormationPlacement(Base):
     placement: Mapped[str] = mapped_column(String(10))
     x: Mapped[float | None] = mapped_column(Float)
     y: Mapped[float | None] = mapped_column(Float)
+
+
+class MatchPlayerRating(Identity, Base):
+    """One review by an account for a player in a finished match."""
+
+    __tablename__ = "match_player_ratings"
+    __table_args__ = (
+        UniqueConstraint("match_id", "player_id", "user_id", name="uq_match_player_rater"),
+        CheckConstraint("stars BETWEEN 1 AND 5", name="match_player_rating_stars"),
+        Index("ix_match_player_ratings_player", "match_id", "player_id"),
+    )
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="RESTRICT"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    stars: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    author: Mapped["User"] = relationship()

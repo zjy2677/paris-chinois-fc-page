@@ -11,6 +11,7 @@ from .guestbook import router as guestbook_router
 from .media import router as media_router
 from .players.router import router as players_router
 from .profile import router as profile_router
+from .ratings.router import router as ratings_router
 from .routers import router
 
 app = FastAPI(
@@ -40,3 +41,4 @@ app.include_router(goals_router)
 app.include_router(players_router)
 
 app.include_router(formations_router)
+app.include_router(ratings_router)
