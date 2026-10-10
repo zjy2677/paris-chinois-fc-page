@@ -52,7 +52,9 @@ def parse_standings(html: str, config: SourceConfig) -> list[Standing]:
         if not displayed_rank and position > 3:
             raise ValueError("Unexpected missing rank")
         numbers = [int(c.get_text(strip=True).replace("−", "-")) for c in cells[2:]]
-        row = Standing(int(match[1]), link.get_text(" ", strip=True), position, *numbers)
+        row = Standing(
+            int(match[1]), link.get_text(" ", strip=True), position, *numbers
+        )
         if (
             min(row.played, row.wins, row.draws, row.losses) < 0
             or row.played != row.wins + row.draws + row.losses
@@ -62,7 +64,9 @@ def parse_standings(html: str, config: SourceConfig) -> list[Standing]:
     ids = [r.team_id for r in rows]
     # Cross-check the independently listed team cards when present.
     team_links = {
-        int(m[1]) for a in soup.select("a[href]") if (m := re.search(r"/teams/(\d+)$", a["href"]))
+        int(m[1])
+        for a in soup.select("a[href]")
+        if (m := re.search(r"/teams/(\d+)$", a["href"]))
     }
     if len(rows) < 2 or len(ids) != len(set(ids)) or config.team_id not in ids:
         raise ValueError("Incomplete or duplicate standings")

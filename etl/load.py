@@ -20,7 +20,9 @@ from .parse_standings import canonical_rows
 def load(engine, config, rows, fixtures):
     now = datetime.now(timezone.utc)
     with Session(engine) as db:
-        run = SyncRun(dataset="league", source_url=config.standings_url, status="running")
+        run = SyncRun(
+            dataset="league", source_url=config.standings_url, status="running"
+        )
         db.add(run)
         db.commit()
         run_id = run.id
@@ -102,7 +104,8 @@ def load(engine, config, rows, fixtures):
                 )
                 if match is None:
                     match = Match(
-                        competition_season_id=fixture_comp.id, source_key=fixture.source_key
+                        competition_season_id=fixture_comp.id,
+                        source_key=fixture.source_key,
                     )
                     db.add(match)
                     run.inserted_count += 1

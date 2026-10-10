@@ -16,16 +16,21 @@ class MigrationHeadCheckTests(unittest.TestCase):
             versions = root / "versions"
             versions.mkdir()
             config = root / "alembic.ini"
-            config.write_text(f"[alembic]\nscript_location = {root}\n", encoding="utf-8")
+            config.write_text(
+                f"[alembic]\nscript_location = {root}\n", encoding="utf-8"
+            )
 
             def run():
                 return subprocess.run(
-                    [sys.executable, str(CHECK), str(config)], capture_output=True, text=True
+                    [sys.executable, str(CHECK), str(config)],
+                    capture_output=True,
+                    text=True,
                 )
 
             def revision(name, parent):
                 (versions / f"{name}.py").write_text(
-                    f"revision = {name!r}\ndown_revision = {parent!r}\n", encoding="utf-8"
+                    f"revision = {name!r}\ndown_revision = {parent!r}\n",
+                    encoding="utf-8",
                 )
 
             self.assertEqual(run().returncode, 1)

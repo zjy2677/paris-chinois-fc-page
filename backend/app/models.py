@@ -484,3 +484,24 @@ class FormationPlacement(Base):
     placement: Mapped[str] = mapped_column(String(10))
     x: Mapped[float | None] = mapped_column(Float)
     y: Mapped[float | None] = mapped_column(Float)
+
+
+class MatchPlayerRating(Identity, Base):
+    """One review by an account for a player in a finished match."""
+
+    __tablename__ = "match_player_ratings"
+    __table_args__ = (
+        UniqueConstraint("match_id", "player_id", "user_id", name="uq_match_player_rater"),
+        CheckConstraint("stars BETWEEN 1 AND 5", name="match_player_rating_stars"),
+        Index("ix_match_player_ratings_player", "match_id", "player_id"),
+    )
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id", ondelete="CASCADE"))
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="RESTRICT"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    stars: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    author: Mapped["User"] = relationship()
