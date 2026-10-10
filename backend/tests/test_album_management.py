@@ -1,10 +1,12 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from uuid import uuid4
 
 import pytest
 from app import media, photo_storage
 from app.models import AlbumPhoto, Base, MediaAsset, PhotoAlbum, User
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
 
 
@@ -101,6 +103,47 @@ def test_enabling_album_disables_previous_background_album(db, admin):
     assert result.background_enabled is True
     assert result.background_interval_seconds == 12
     assert result.background_transition == "zoom"
+
+
+def test_concurrent_background_activation_keeps_one_album_enabled():
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("Requires the disposable PostgreSQL test database")
+    engine = create_engine(url)
+    assert engine.url.database.endswith("_test")
+    user_id = uuid4()
+    album_ids = [uuid4(), uuid4()]
+    with Session(engine) as db:
+        db.add(User(id=user_id, normalized_email=f"{user_id}@example.com", password_hash="unused"))
+        db.add_all(
+            PhotoAlbum(id=album_id, title=f"Album {index}", created_by=user_id)
+            for index, album_id in enumerate(album_ids)
+        )
+        db.commit()
+
+    barrier = Barrier(2)
+
+    def enable(album_id):
+        with Session(engine) as db:
+            barrier.wait(timeout=5)
+            media.update_album(album_id, media.AlbumUpdate(background_enabled=True), db, None)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(enable, album_ids))
+        with Session(engine) as db:
+            enabled = db.scalars(
+                select(PhotoAlbum.id).where(
+                    PhotoAlbum.id.in_(album_ids), PhotoAlbum.background_enabled.is_(True)
+                )
+            ).all()
+            assert len(enabled) == 1
+    finally:
+        with Session(engine) as db:
+            db.execute(delete(PhotoAlbum).where(PhotoAlbum.id.in_(album_ids)))
+            db.execute(delete(User).where(User.id == user_id))
+            db.commit()
+        engine.dispose()
 
 
 def test_selected_album_photo_is_returned_as_background(db, admin):

@@ -157,7 +157,14 @@ export function GalleryPage() {
               ) : (
                 <div className="mb-7" />
               )}
-              {account.data?.role === "admin" ? <AlbumAdminControls album={album} /> : null}
+              {account.data?.role === "admin" ? (
+                <AlbumAdminControls
+                  album={album}
+                  onDeleted={(deletedId) =>
+                    setRetryAlbumId((current) => (current === deletedId ? null : current))
+                  }
+                />
+              ) : null}
               <PhotoGrid
                 photos={album.photos}
                 albumId={album.id}

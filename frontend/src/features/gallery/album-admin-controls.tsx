@@ -3,7 +3,13 @@ import { Settings2, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n/i18n-provider";
 import { useDeleteAlbum, useUpdateAlbum, type Album, type BackgroundTransition } from "./media-api";
 
-export function AlbumAdminControls({ album }: { album: Album }) {
+export function AlbumAdminControls({
+  album,
+  onDeleted,
+}: {
+  album: Album;
+  onDeleted?: (albumId: string) => void;
+}) {
   const { t } = useI18n();
   const updateAlbum = useUpdateAlbum();
   const deleteAlbum = useDeleteAlbum();
@@ -21,7 +27,15 @@ export function AlbumAdminControls({ album }: { album: Album }) {
     setBackgroundEnabled(album.background_enabled);
     setInterval(album.background_interval_seconds);
     setTransition(album.background_transition);
-  }, [album]);
+  }, [
+    album.id,
+    album.title,
+    album.description,
+    album.event_date,
+    album.background_enabled,
+    album.background_interval_seconds,
+    album.background_transition,
+  ]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -41,6 +55,7 @@ export function AlbumAdminControls({ album }: { album: Album }) {
   async function remove() {
     if (!window.confirm(t("gallery.deleteAlbumConfirm"))) return;
     await deleteAlbum.mutateAsync(album.id);
+    onDeleted?.(album.id);
   }
 
   const selectedPhotos = album.photos.filter((photo) => photo.use_as_background).length;

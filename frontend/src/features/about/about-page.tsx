@@ -2,9 +2,11 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { ClubHonours } from "./club-honours";
 import { assets } from "@/config/assets";
 import { BackgroundCarousel } from "@/features/gallery/background-carousel";
+import { useBackgrounds } from "@/features/gallery/media-api";
 
 export function AboutPage() {
   const { language, t } = useI18n();
+  const backgrounds = useBackgrounds();
   return (
     <>
       <section className="relative isolate overflow-hidden border-b border-border bg-background pb-20 pt-40 md:pb-28 md:pt-52">
@@ -18,14 +20,16 @@ export function AboutPage() {
               {t("about.intro")}
             </p>
           )}
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Pexels-jonathan-petersson-399187.jpg"
-            target="_blank"
-            rel="noreferrer"
-            className="mt-10 inline-block text-xs text-foreground/70 underline decoration-foreground/30 underline-offset-4 hover:text-foreground"
-          >
-            {t("about.photoCredit")}
-          </a>
+          {!backgrounds.data?.photos.length ? (
+            <a
+              href="https://commons.wikimedia.org/wiki/File:Pexels-jonathan-petersson-399187.jpg"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-10 inline-block text-xs text-foreground/70 underline decoration-foreground/30 underline-offset-4 hover:text-foreground"
+            >
+              {t("about.photoCredit")}
+            </a>
+          ) : null}
         </div>
       </section>
 

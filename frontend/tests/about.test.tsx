@@ -41,3 +41,30 @@ test("All championship years match the supplied history", () => {
     ],
   );
 });
+
+test("About hides the fallback photo credit when album backgrounds are active", () => {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(["media", "backgrounds"], {
+    album_id: "album-1",
+    interval_seconds: 8,
+    transition: "fade",
+    photos: [
+      {
+        id: "photo-1",
+        url: "/api/media/photos/photo-1/content",
+        caption: null,
+        alt_text: "Team photo",
+        use_as_background: true,
+      },
+    ],
+  });
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider initialLanguage="en">
+        <AboutPage />
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
+  assert.ok(html.includes("/api/media/photos/photo-1/content"));
+  assert.ok(!html.includes("Jonathan Petersson"));
+});

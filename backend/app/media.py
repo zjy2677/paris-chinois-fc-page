@@ -225,9 +225,6 @@ def update_album(
     db: DB,
     _: Annotated[User, Depends(require_role("admin"))],
 ):
-    row = db.get(PhotoAlbum, album_id, with_for_update=True)
-    if row is None:
-        raise HTTPException(404, "Album not found")
     changes = body.model_dump(exclude_unset=True)
     required = {
         "title",
@@ -237,6 +234,12 @@ def update_album(
     }
     if any(changes.get(field) is None for field in required & changes.keys()):
         raise HTTPException(422, "Required album settings cannot be null")
+    if changes.get("background_enabled") and db.get_bind().dialect.name == "postgresql":
+        # Every activation takes the same transaction lock before locking an album row.
+        db.execute(select(func.pg_advisory_xact_lock(0x50434643, 0x4247414C)))
+    row = db.get(PhotoAlbum, album_id, with_for_update=True)
+    if row is None:
+        raise HTTPException(404, "Album not found")
     if changes.get("background_enabled"):
         others = db.scalars(
             select(PhotoAlbum)
