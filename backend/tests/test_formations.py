@@ -127,12 +127,28 @@ def test_permissions_persistence_and_final_transition(board_client):
     matches[0].home_score = 1
     matches[0].away_score = 0
     db.commit()
+    user.role = "player"
+    db.commit()
     assert client.put(url, json={"placements": []}, headers=ORIGIN).status_code == 409
+    assert not client.get(url).json()["editable"]
+    user.role = "admin"
+    db.commit()
+    admin_board = client.get(url).json()
+    assert admin_board["editable"]
+    assert {p["id"] for p in admin_board["players"]} == {
+        str(players[0].id),
+        str(players[1].id),
+    }
+    assert client.put(url, json=payload(players[2]), headers=ORIGIN).status_code == 422
+    saved = client.put(url, json=payload(players[1]), headers=ORIGIN)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["editable"]
     client.cookies.clear()
     response = client.get(url)
     assert response.status_code == 200
     assert not response.json()["editable"]
-    assert [p["id"] for p in response.json()["players"]] == [str(players[0].id)]
+    assert response.json()["placements"] == payload(players[1])["placements"]
+    assert [p["id"] for p in response.json()["players"]] == [str(players[1].id)]
     assert "password_hash" not in response.text
 
 
@@ -157,7 +173,7 @@ def test_invalid_placements_do_not_replace_saved_board(board_client):
 
 
 def test_goal_sources_and_cancelled_game(board_client):
-    client, db, matches, players, _, teams = board_client
+    client, db, matches, players, user, teams = board_client
     match = matches[0]
     url = f"/api/formations/{match.id}"
     db.add(
@@ -192,6 +208,7 @@ def test_goal_sources_and_cancelled_game(board_client):
     assert roster[str(players[0].id)]["goals"] == 0
     assert roster[str(players[1].id)]["goals"] == 1
     match.status = "cancelled"
+    user.role = "admin"
     db.commit()
     assert client.put(url, json=payload(players[0]), headers=ORIGIN).status_code == 409
     assert not client.get(url).json()["editable"]

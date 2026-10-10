@@ -398,19 +398,21 @@ or grant Swagger's requests permission to perform admin mutations.
 `GET /api/formations/{match_id}` reads the shared board. Before `matches.status = final`,
 only authenticated `player` and `admin` accounts can read it. Final boards are public.
 `PUT /api/formations/{match_id}` replaces the complete placement list for player/admin
-accounts with a trusted Origin. Final and cancelled matches reject writes. A match row
-lock serializes saves; the last saved formation wins. Responses use `no-store`, and the
-endpoint is outside the public `/api/matches/**` CDN cache rule.
+accounts with a trusted Origin. Only admins can edit final matches; cancelled matches
+reject all writes. A match row lock serializes saves; the last saved formation wins.
+Responses use `no-store`, and the endpoint is outside the public `/api/matches/**`
+CDN cache rule.
 
 The `formation_placements` table has a composite match/player primary key, a pitch/bench
 placement and nullable x/y percentages. Bench coordinates must be null; pitch coordinates
 must be finite and between 0 and 100. A save accepts active players in the match's season
-and already-saved players (including subsequently deactivated players). Final responses
-include only saved players. Profiles remain linked to existing player records, rather than
-copying personal information or introducing a second statistics table. Goal/assist counts
-reuse the existing match-event/legacy-goal aggregation.
+and already-saved players (including subsequently deactivated players). Public final responses
+include only saved players; admin responses also include eligible active players for that season.
+Profiles remain linked to existing player records, rather than copying personal information
+or introducing a second statistics table. Goal/assist counts reuse the existing
+match-event/legacy-goal aggregation.
 
-The countdown is presentation only: it stops at zero, while publication and edit locking
+The countdown is presentation only: it stops at zero, while publication and editing permissions
 follow the authoritative match status. Consequently, publication waits for the ETL or admin
 to mark a match final. Boards refresh their status every 30 seconds while the page is active.
 There is no automatic time-based finalization, realtime collaboration or revision history.
