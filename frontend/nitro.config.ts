@@ -35,14 +35,6 @@ export default defineConfig({
             "x-vercel-enable-rewrite-caching": "1",
           },
         },
-        "/api/matches/**": {
-          proxy: `${apiOrigin}/api/matches/**`,
-          headers: {
-            "Cache-Control": "public, max-age=0, must-revalidate",
-            "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
-            "x-vercel-enable-rewrite-caching": "1",
-          },
-        },
         "/api/standings": {
           proxy: `${apiOrigin}/api/standings`,
           headers: {
