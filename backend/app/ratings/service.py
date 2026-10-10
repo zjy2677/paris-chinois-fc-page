@@ -65,7 +65,7 @@ def summaries(db: Session, match_id: UUID) -> list[PlayerRatingSummary]:
         .outerjoin(totals, totals.c.player_id == Player.id)
         .where(
             or_(
-                and_(Player.active.is_(True), SquadMembership.id.is_not(None)),
+                SquadMembership.id.is_not(None),
                 FormationPlacement.player_id.is_not(None),
             )
         )
