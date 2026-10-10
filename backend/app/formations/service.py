@@ -27,7 +27,7 @@ def get_match(db: Session, match_id: UUID, lock: bool = False) -> Match:
     return match
 
 
-def roster(db: Session, match: Match):
+def roster(db: Session, match: Match, include_eligible: bool = False):
     season = db.get(CompetitionSeason, match.competition_season_id)
     saved = select(FormationPlacement.player_id).where(FormationPlacement.match_id == match.id)
     selected = Player.id.in_(saved)
@@ -42,12 +42,16 @@ def roster(db: Session, match: Match):
                 SquadMembership.season_label == season.season_label,
             ),
         )
-        .where(selected if match.status == "final" else or_(selected, eligible))
+        .where(
+            selected
+            if match.status == "final" and not include_eligible
+            else or_(selected, eligible)
+        )
         .order_by(Player.display_name, Player.id)
     ).all()
 
 
-def board(db: Session, match: Match) -> FormationResponse:
+def board(db: Session, match: Match, can_edit_final: bool = False) -> FormationResponse:
     records = goal_records()
     goals, assists = Counter(), Counter()
     for scorer, assistant in db.execute(
@@ -72,13 +76,13 @@ def board(db: Session, match: Match) -> FormationResponse:
             goals=goals[player.id],
             assists=assists[player.id],
         )
-        for player, squad, has_photo in roster(db, match)
+        for player, squad, has_photo in roster(db, match, include_eligible=can_edit_final)
     ]
     return FormationResponse(
         match_id=match.id,
         status=match.status,
         kickoff_at=match.kickoff_at,
-        editable=match.status not in ("final", "cancelled"),
+        editable=match.status != "cancelled" and (match.status != "final" or can_edit_final),
         players=players,
         placements=[
             Placement.model_validate(row)
@@ -91,10 +95,12 @@ def board(db: Session, match: Match) -> FormationResponse:
     )
 
 
-def save(db: Session, match: Match, body: FormationInput) -> FormationResponse:
-    if match.status in ("final", "cancelled"):
+def save(
+    db: Session, match: Match, body: FormationInput, can_edit_final: bool = False
+) -> FormationResponse:
+    if match.status == "cancelled" or (match.status == "final" and not can_edit_final):
         raise HTTPException(409, "This match formation is read-only")
-    eligible = {player.id for player, _, _ in roster(db, match)}
+    eligible = {player.id for player, _, _ in roster(db, match, include_eligible=can_edit_final)}
     if any(item.player_id not in eligible for item in body.placements):
         raise HTTPException(422, "Player is not eligible for this match season")
     # The caller locks the match row, serializing full replacements and status changes.
@@ -103,6 +109,6 @@ def save(db: Session, match: Match, body: FormationInput) -> FormationResponse:
         [FormationPlacement(match_id=match.id, **item.model_dump()) for item in body.placements]
     )
     db.flush()
-    result = board(db, match)
+    result = board(db, match, can_edit_final=can_edit_final)
     db.commit()
     return result
