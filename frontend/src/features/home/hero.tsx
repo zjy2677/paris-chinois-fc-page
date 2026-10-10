@@ -2,19 +2,18 @@ import { useI18n } from "@/i18n/i18n-provider";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { assets } from "@/config/assets";
+import { BackgroundCarousel } from "@/features/gallery/background-carousel";
 import { LikeButton } from "./like-button";
 export function Hero() {
   const { t } = useI18n();
 
   return (
     <section className="relative flex min-h-[720px] items-start overflow-hidden bg-background pb-16 pt-32 md:pt-36 md:min-h-[830px] md:pb-20">
-      <img
-        src={assets.hero}
-        alt={t("Paris Chinois FC team together on a floodlit football pitch")}
-        width={1280}
-        height={1028}
-        fetchPriority="high"
-        className="absolute inset-0 h-full w-full object-cover object-[center_60%] md:translate-x-[8%]"
+      <BackgroundCarousel
+        fallback={assets.hero}
+        imageClassName="object-[center_60%]"
+        fallbackImageClassName="md:translate-x-[8%]"
+        priority
       />
       <div className="hero-scrim absolute inset-0" />
       <div className="texture absolute inset-0 opacity-30" />

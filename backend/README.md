@@ -261,6 +261,30 @@ TEST_DATABASE_URL=postgresql+psycopg://USER:PASSWORD@localhost/club_test \
   .venv/bin/pytest -q tests/test_goals.py
 ```
 
+## Team albums and page backgrounds
+
+The gallery is the source of truth for team photos. Administrators can create, edit,
+and delete albums, delete individual photos, and mark selected photos for the page
+background carousel. Only one album can be the active background source at a time.
+The database stores R2 object keys through `media_assets`; it does not store public R2
+URLs or duplicate image bytes when R2 is enabled.
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| GET | `/api/media/albums` | Public |
+| GET | `/api/media/backgrounds` | Public |
+| POST | `/api/media/albums` | Admin |
+| PATCH | `/api/media/albums/{album_id}` | Admin |
+| DELETE | `/api/media/albums/{album_id}` | Admin |
+| POST | `/api/media/albums/{album_id}/photos` | Admin |
+| PATCH | `/api/media/albums/{album_id}/photos/{photo_id}` | Admin |
+| DELETE | `/api/media/photos/{photo_id}` | Owner or admin |
+
+The album update accepts title, description, event date, background activation,
+transition (`fade`, `slide`, or `zoom`), and an interval from 3 to 30 seconds. The photo
+update accepts `{"use_as_background": true}` or `false`. If no album or photo is selected,
+the frontend keeps its bundled page image as the fallback.
+
 ## Squad player management
 
 The Team page reads `GET /api/players?season=2026/2027` rather than bundled sample
