@@ -317,6 +317,7 @@ export const fr = {
   "ratings.saving": "Enregistrement…",
   "ratings.remove": "Supprimer ma note",
   "ratings.saveError": "Impossible d’enregistrer votre note. Réessayez.",
+  "ratings.removeError": "Impossible de supprimer votre note. Réessayez.",
   "ratings.membersOnly": "Seuls les comptes joueur et administrateur peuvent noter et commenter.",
   "ratings.comments": "Notes et commentaires",
   "ratings.noRatings": "Aucune note pour le moment. Soyez le premier à noter ce joueur.",

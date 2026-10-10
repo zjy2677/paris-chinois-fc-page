@@ -18,6 +18,7 @@ from app.models import (
     Team,
     User,
 )
+from app.ratings import limiter
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -79,6 +80,7 @@ def rating_client(tmp_path, monkeypatch):
 
         monkeypatch.setattr(dependencies, "resolve_session", session_user)
         dependencies._attempts.clear()
+        limiter._attempts.clear()
         app.dependency_overrides[get_db] = lambda: db
         try:
             with TestClient(app) as client:
@@ -87,6 +89,7 @@ def rating_client(tmp_path, monkeypatch):
         finally:
             app.dependency_overrides.pop(get_db, None)
             dependencies._attempts.clear()
+            limiter._attempts.clear()
     engine.dispose()
 
 
@@ -169,3 +172,12 @@ def test_inactive_season_members_remain_rateable_as_absent(rating_client):
         ).status_code
         == 204
     )
+
+
+def test_rating_writes_do_not_consume_login_attempts(rating_client):
+    client, _, match, player, _, _, _ = rating_client
+    url = f"/api/matches/{match.id}/players/{player.id}/rating"
+    for _ in range(12):
+        assert client.put(url, json={"stars": 5}, headers=ORIGIN).status_code == 204
+    assert not dependencies._attempts
+    assert limiter._attempts

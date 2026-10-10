@@ -3,15 +3,16 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from ..auth.dependencies import DB, no_store, require_role, throttle, trusted_origin
+from ..auth.dependencies import DB, no_store, require_role, trusted_origin
 from ..models import User
 from . import service
+from .limiter import throttle_rating_write
 from .schemas import MyRating, PlayerRatingDetail, PlayerRatingSummary, RatingInput
 
 router = APIRouter(prefix="/api/matches/{match_id}", tags=["Match player ratings"])
 member = Annotated[User, Depends(require_role("player", "admin"))]
 read_member = [Depends(no_store)]
-write_member = [Depends(no_store), Depends(trusted_origin), Depends(throttle)]
+write_member = [Depends(no_store), Depends(trusted_origin), Depends(throttle_rating_write)]
 
 
 @router.get("/ratings", response_model=list[PlayerRatingSummary])

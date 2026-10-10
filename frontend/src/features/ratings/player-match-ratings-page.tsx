@@ -170,7 +170,7 @@ export function PlayerMatchRatingsPage({
                     </div>
                     {(save.isError || remove.isError) && (
                       <p role="alert" className="mt-3 text-sm text-copper">
-                        {t("ratings.saveError")}
+                        {t(remove.isError ? "ratings.removeError" : "ratings.saveError")}
                       </p>
                     )}
                   </form>

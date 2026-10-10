@@ -305,6 +305,7 @@ export const zh = {
   "ratings.saving": "正在保存…",
   "ratings.remove": "删除我的评分",
   "ratings.saveError": "评分保存失败，请重试。",
+  "ratings.removeError": "评分删除失败，请重试。",
   "ratings.membersOnly": "仅球员和管理员账号可以评分、评论。",
   "ratings.comments": "评分与评论",
   "ratings.noRatings": "暂无评分，来为这名球员打分吧。",

@@ -313,6 +313,7 @@ export const en = {
   "ratings.saving": "Saving…",
   "ratings.remove": "Remove my rating",
   "ratings.saveError": "Your rating could not be saved. Please try again.",
+  "ratings.removeError": "Your rating could not be removed. Please try again.",
   "ratings.membersOnly": "Only club player and admin accounts can rate and comment.",
   "ratings.comments": "Ratings and comments",
   "ratings.noRatings": "No ratings yet. Be the first to rate this player.",
