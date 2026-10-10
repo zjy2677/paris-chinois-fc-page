@@ -16,9 +16,7 @@ class MigrationHeadCheckTests(unittest.TestCase):
             versions = root / "versions"
             versions.mkdir()
             config = root / "alembic.ini"
-            config.write_text(
-                f"[alembic]\nscript_location = {root}\n", encoding="utf-8"
-            )
+            config.write_text(f"[alembic]\nscript_location = {root}\n", encoding="utf-8")
 
             def run():
                 return subprocess.run(

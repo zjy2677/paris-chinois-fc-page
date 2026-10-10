@@ -4,11 +4,6 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session
-
 from app.auth import dependencies
 from app.auth.service import COOKIE_NAME
 from app.database import get_db
@@ -23,6 +18,10 @@ from app.models import (
     Team,
     User,
 )
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import Session
 
 ORIGIN = {"Origin": "http://localhost:4173"}
 

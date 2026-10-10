@@ -49,9 +49,7 @@ def clean_address(address: str, stadium: str) -> str:
         address = address[len(stadium) :].lstrip(" ,")
     # Remove only an exact repeated postcode/city suffix, not a city name
     # that also happens to occur in the street (e.g. rue de Paris).
-    duplicate = re.fullmatch(
-        r"(.*\b(\d{5})\s+([^,]+)),\s*\2,\s*\3", address, re.IGNORECASE
-    )
+    duplicate = re.fullmatch(r"(.*\b(\d{5})\s+([^,]+)),\s*\2,\s*\3", address, re.IGNORECASE)
     return duplicate[1] if duplicate else address
 
 
@@ -75,9 +73,7 @@ def parse_fixtures(html: str, standings: list[Standing], config: SourceConfig):
         stage = ""
         if is_cup:
             heading = card.find("div").get_text(" ", strip=True)
-            stage = (
-                heading.removeprefix("Coupe ").removeprefix(config.cup_name).strip(" —")
-            )
+            stage = heading.removeprefix("Coupe ").removeprefix(config.cup_name).strip(" —")
             stage = re.sub(r"\s+(Domicile|Extérieur)$", "", stage).strip()
             if not stage:
                 raise ValueError("Missing cup stage")
@@ -94,17 +90,10 @@ def parse_fixtures(html: str, standings: list[Standing], config: SourceConfig):
         if not opponent or (not is_cup and (not round_match or not leg_match)):
             raise ValueError("Missing fixture identity")
         at_home = opponent.startswith("Reçoit ")
-        name = (
-            opponent.removeprefix("Reçoit ")
-            .removeprefix("Se déplace chez ")
-            .strip()
-            .upper()
-        )
+        name = opponent.removeprefix("Reçoit ").removeprefix("Se déplace chez ").strip().upper()
         if name not in names:
             raise ValueError(f"Unmapped opponent: {name}")
-        home, away = (
-            (config.team_id, names[name]) if at_home else (names[name], config.team_id)
-        )
+        home, away = (config.team_id, names[name]) if at_home else (names[name], config.team_id)
         day, leg = (None, stage) if is_cup else (int(round_match[1]), leg_match[1])
         source_key = (
             f"cup:{config.cup_id}:{config.season_id}:{home}:{away}:{stage}"
@@ -136,16 +125,8 @@ def parse_fixtures(html: str, standings: list[Standing], config: SourceConfig):
         elif not re.search(r"(à définir|à confirmer|reporté)", text, re.IGNORECASE):
             raise ValueError("Missing or unrecognized kickoff")
         venue = card.select_one('[data-testid="terrain-itineraire"]')
-        stadium = (
-            venue.get("title", "").removeprefix("Ouvrir l'itinéraire vers ")
-            if venue
-            else ""
-        )
-        address = (
-            parse_qs(urlparse(venue["href"]).query).get("query", [""])[0]
-            if venue
-            else ""
-        )
+        stadium = venue.get("title", "").removeprefix("Ouvrir l'itinéraire vers ") if venue else ""
+        address = parse_qs(urlparse(venue["href"]).query).get("query", [""])[0] if venue else ""
         address = clean_address(address, stadium)
         status = "unknown"
         home_score = away_score = None
@@ -166,15 +147,11 @@ def parse_fixtures(html: str, standings: list[Standing], config: SourceConfig):
             if outcome == "N" and first == second:
                 club_score = opponent_score = first
             elif outcome in {"V", "D"} and first != second:
-                club_score, opponent_score = sorted(
-                    (first, second), reverse=outcome == "V"
-                )
+                club_score, opponent_score = sorted((first, second), reverse=outcome == "V")
             else:
                 raise ValueError("Missing or inconsistent club result marker")
             home_score, away_score = (
-                (club_score, opponent_score)
-                if at_home
-                else (opponent_score, club_score)
+                (club_score, opponent_score) if at_home else (opponent_score, club_score)
             )
             status = "final"
         elif "À jouer" in text:

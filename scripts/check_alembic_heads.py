@@ -16,9 +16,7 @@ def main() -> int:
     heads = ScriptDirectory.from_config(Config(str(config_path))).get_heads()
     print(f"Alembic heads ({len(heads)}): {', '.join(heads) or '(none)'}")
     if len(heads) != 1:
-        print(
-            f"Expected exactly one Alembic head; found {len(heads)}.", file=sys.stderr
-        )
+        print(f"Expected exactly one Alembic head; found {len(heads)}.", file=sys.stderr)
         return 1
     return 0
 

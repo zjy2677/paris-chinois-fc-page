@@ -13,9 +13,7 @@ class SourceConfig:
     cup_id: int = 1
     cup_name: str = "COUPE A 7 VENDREDI"
     # Verified through the official /teams?search= directory, distinct from AS SAMSTAG A.
-    cup_teams: dict[int, str] = field(
-        default_factory=lambda: {60: "AS SAMSTAG B", 30: "MOBDIN"}
-    )
+    cup_teams: dict[int, str] = field(default_factory=lambda: {60: "AS SAMSTAG B", 30: "MOBDIN"})
     # Explicitly reviewed FLA display aliases, not fuzzy matching.
     aliases: dict[str, int] = field(
         default_factory=lambda: {

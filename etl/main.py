@@ -15,9 +15,7 @@ from .parse_standings import parse_standings
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Manually import the configured FLA championship"
-    )
+    parser = argparse.ArgumentParser(description="Manually import the configured FLA championship")
     parser.add_argument("--standings-file", type=Path)
     parser.add_argument("--fixtures-file", type=Path)
     parser.add_argument(
