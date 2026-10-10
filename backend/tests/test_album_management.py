@@ -115,6 +115,7 @@ def test_concurrent_background_activation_keeps_one_album_enabled():
     album_ids = [uuid4(), uuid4()]
     with Session(engine) as db:
         db.add(User(id=user_id, normalized_email=f"{user_id}@example.com", password_hash="unused"))
+        db.flush()
         db.add_all(
             PhotoAlbum(id=album_id, title=f"Album {index}", created_by=user_id)
             for index, album_id in enumerate(album_ids)
