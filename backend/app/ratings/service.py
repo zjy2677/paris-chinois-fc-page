@@ -63,7 +63,12 @@ def summaries(db: Session, match_id: UUID) -> list[PlayerRatingSummary]:
             ),
         )
         .outerjoin(totals, totals.c.player_id == Player.id)
-        .where(or_(SquadMembership.id.is_not(None), FormationPlacement.player_id.is_not(None)))
+        .where(
+            or_(
+                and_(Player.active.is_(True), SquadMembership.id.is_not(None)),
+                FormationPlacement.player_id.is_not(None),
+            )
+        )
         .order_by(Player.display_name, Player.id)
     ).all()
     items = [

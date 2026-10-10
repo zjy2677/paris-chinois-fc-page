@@ -284,6 +284,7 @@ export const en = {
   "ratings.unrated": "Not rated yet",
   "ratings.starLabel": "{score} out of 5 stars",
   "ratings.count": "{count} ratings",
+  "ratings.countOne": "{count} rating",
   "ratings.back": "Back to match",
   "ratings.notFound": "This player is not in the match squad.",
   "ratings.yourRating": "Your rating",

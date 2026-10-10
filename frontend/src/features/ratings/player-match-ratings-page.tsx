@@ -107,7 +107,9 @@ export function PlayerMatchRatingsPage({
                     {player!.average_stars?.toFixed(1) ?? "—"}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {t("ratings.count", { count: player!.rating_count })}
+                    {t(player!.rating_count === 1 ? "ratings.countOne" : "ratings.count", {
+                      count: player!.rating_count,
+                    })}
                   </span>
                 </div>
               </div>

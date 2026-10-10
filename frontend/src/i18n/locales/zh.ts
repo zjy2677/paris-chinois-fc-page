@@ -277,6 +277,7 @@ export const zh = {
   "ratings.unrated": "暂无评分",
   "ratings.starLabel": "满分 5 星，得 {score} 星",
   "ratings.count": "{count} 人评分",
+  "ratings.countOne": "{count} 人评分",
   "ratings.back": "返回比赛详情",
   "ratings.notFound": "该球员不在本场比赛阵容中。",
   "ratings.yourRating": "我的评分",

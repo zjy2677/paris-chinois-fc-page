@@ -68,7 +68,9 @@ export function MatchRatingsSection({ matchId, final }: { matchId: string; final
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {t("ratings.count", { count: player.rating_count })}
+                    {t(player.rating_count === 1 ? "ratings.countOne" : "ratings.count", {
+                      count: player.rating_count,
+                    })}
                   </p>
                 </div>
               </Link>

@@ -28,7 +28,7 @@ export function StarRating({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-copper" aria-label={label}>
+    <span role="img" className="inline-flex items-center gap-1 text-copper" aria-label={label}>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}

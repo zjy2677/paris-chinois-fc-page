@@ -149,3 +149,23 @@ def test_ratings_open_only_after_final(rating_client):
         ).status_code
         == 409
     )
+
+
+def test_inactive_players_only_remain_rateable_if_placed_in_match(rating_client):
+    client, db, match, placed, unplaced, _, _ = rating_client
+    root = f"/api/matches/{match.id}"
+    placed.active = False
+    unplaced.active = False
+    db.commit()
+
+    roster = client.get(f"{root}/ratings").json()
+    assert [entry["player_id"] for entry in roster] == [str(placed.id)]
+    assert roster[0]["participation"] == "sub"
+    assert client.get(f"{root}/players/{placed.id}/ratings").status_code == 200
+    assert client.get(f"{root}/players/{unplaced.id}/ratings").status_code == 404
+    assert (
+        client.put(
+            f"{root}/players/{unplaced.id}/rating", json={"stars": 5}, headers=ORIGIN
+        ).status_code
+        == 404
+    )

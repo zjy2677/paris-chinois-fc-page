@@ -287,6 +287,7 @@ export const fr = {
   "ratings.unrated": "Pas encore noté",
   "ratings.starLabel": "{score} étoiles sur 5",
   "ratings.count": "{count} notes",
+  "ratings.countOne": "{count} note",
   "ratings.back": "Retour au match",
   "ratings.notFound": "Ce joueur ne figure pas dans l’effectif du match.",
   "ratings.yourRating": "Votre note",
