@@ -14,6 +14,7 @@ function isPublicQuery(queryKey: QueryKey) {
   return (
     (queryKey[0] === "league" &&
       (queryKey[1] === "matches" ||
+        queryKey[1] === "seasons" ||
         queryKey[1] === "standings" ||
         (queryKey[1] === "match" && typeof queryKey[2] === "string"))) ||
     (queryKey[0] === "players" && queryKey[1] === "leaderboards")
@@ -26,6 +27,7 @@ export function restorePublicQueryCache(queryClient: QueryClient) {
   // Keep inactive public data for as long as its persisted fallback is usable.
   for (const key of [
     ["league", "matches"],
+    ["league", "seasons"],
     ["league", "standings"],
     ["league", "match"],
     ["players", "leaderboards"],

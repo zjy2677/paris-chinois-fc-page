@@ -1,9 +1,26 @@
 import { useI18n } from "@/i18n/i18n-provider";
-import { useStandings } from "./league-api";
+import { useCompetitionSeasons, useStandings } from "./league-api";
 import { DataState } from "./data-state";
-export function LeagueTable({ compact = false }: { compact?: boolean }) {
+import { seasonOptions } from "./season-options";
+export function LeagueTable({
+  compact = false,
+  competitionSeasonId,
+}: {
+  compact?: boolean;
+  competitionSeasonId?: string | null;
+}) {
   const { t, c, formatDate } = useI18n();
-  const query = useStandings();
+  const seasons = useCompetitionSeasons();
+  const newestLeagueId = seasonOptions(seasons.data ?? []).find(
+    (option) => option.leagueId,
+  )?.leagueId;
+  const selectedId =
+    competitionSeasonId === undefined ? (newestLeagueId ?? null) : competitionSeasonId;
+  const query = useStandings(selectedId);
+  if (competitionSeasonId === undefined && seasons.isPending) return <DataState loading />;
+  if (competitionSeasonId === undefined && seasons.isError && !seasons.data)
+    return <DataState error retry={() => void seasons.refetch()} />;
+  if (selectedId === null) return <DataState />;
   if (query.isPending || query.isError)
     return (
       <DataState

@@ -125,6 +125,15 @@ def test_import_atomicity_and_api(engine, parsed, monkeypatch):
             assert client.get("/api/ready").status_code == 200
             page = client.get("/api/matches?limit=2").json()
             assert page["total"] == 29 and len(page["items"]) == 2
+            seasons = client.get("/api/competition-seasons").json()
+            assert any(
+                season["season_label"] == config.season_label
+                and season["competition_kind"] == "league"
+                for season in seasons
+            )
+            assert all(
+                set(season) == {"id", "season_label", "competition_kind"} for season in seasons
+            )
             assert client.get("/api/matches?limit=101").status_code == 422
             assert client.get(f"/api/matches/{uuid4()}").status_code == 404
             detail = client.get(f"/api/matches/{match_id}").json()

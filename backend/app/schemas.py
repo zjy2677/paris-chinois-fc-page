@@ -118,6 +118,12 @@ class MatchPage(BaseModel):
     total: int
 
 
+class CompetitionSeasonResponse(BaseModel):
+    id: UUID
+    season_label: str
+    competition_kind: Literal["league", "cup", "custom"]
+
+
 class StandingResponse(BaseModel):
     team: TeamResponse
     position: int

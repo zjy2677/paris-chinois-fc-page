@@ -279,6 +279,9 @@ export const fr = {
   "league.cup": "Coupe",
 
   "league.loading": "Chargement des données…",
+  "league.season": "Saison {season}",
+  "league.selectSeason": "Saison",
+  "league.noSeasons": "Aucune saison disponible pour le moment.",
   "league.error": "Les données sont indisponibles. Réessayez.",
   "league.empty": "Aucun classement publié.",
   "league.noResults": "Aucun résultat publié.",

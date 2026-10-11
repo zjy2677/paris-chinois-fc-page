@@ -274,6 +274,9 @@ export const en = {
   "league.cup": "Cup",
 
   "league.loading": "Loading league data…",
+  "league.season": "Season {season}",
+  "league.selectSeason": "Season",
+  "league.noSeasons": "No seasons available yet.",
   "league.error": "League data is unavailable. Please try again.",
   "league.empty": "No standings published yet.",
   "league.noResults": "No results published yet.",

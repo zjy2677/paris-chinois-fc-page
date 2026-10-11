@@ -41,6 +41,11 @@ type ApiStanding = {
   goal_difference: number;
   points: number;
 };
+export type CompetitionSeason = {
+  id: string;
+  season_label: string;
+  competition_kind: "league" | "cup" | "custom";
+};
 const team = (t: ApiTeam): Team => ({
   id: t.id,
   name: t.name,
@@ -87,10 +92,19 @@ export function useMatches() {
     },
   });
 }
-export function useStandings() {
+export function useCompetitionSeasons() {
   return useQuery({
-    queryKey: ["league", "standings"],
+    queryKey: ["league", "seasons"],
     enabled: typeof window !== "undefined",
+    staleTime: 60_000,
+    retry: 1,
+    queryFn: ({ signal }) => get<CompetitionSeason[]>("/competition-seasons", signal),
+  });
+}
+export function useStandings(competitionSeasonId?: string | null) {
+  return useQuery({
+    queryKey: ["league", "standings", competitionSeasonId ?? "current"],
+    enabled: typeof window !== "undefined" && competitionSeasonId !== null,
     staleTime: 60_000,
     retry: 1,
     queryFn: async ({ signal }) => {
@@ -98,7 +112,12 @@ export function useStandings() {
         rows: ApiStanding[];
         source_url: string | null;
         last_successful_sync: string | null;
-      }>("/standings", signal);
+      }>(
+        competitionSeasonId
+          ? `/standings?competition_season_id=${encodeURIComponent(competitionSeasonId)}`
+          : "/standings",
+        signal,
+      );
       return {
         source: result.source_url,
         syncedAt: result.last_successful_sync,
@@ -245,6 +264,9 @@ export function useCreateMatch() {
   return useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       adminRequest<ApiMatchDetail>("/matches", "POST", body).then(toMatchDetail),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["league", "matches"] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["league", "matches"] });
+      void queryClient.invalidateQueries({ queryKey: ["league", "seasons"] });
+    },
   });
 }
