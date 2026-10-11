@@ -267,6 +267,9 @@ export const zh = {
   "league.cup": "杯赛",
 
   "league.loading": "正在加载联赛数据…",
+  "league.season": "{season}赛季",
+  "league.selectSeason": "赛季",
+  "league.noSeasons": "暂无可选赛季。",
   "league.error": "暂时无法获取联赛数据，请重试。",
   "league.empty": "暂无已公布的积分榜。",
   "league.noResults": "暂无已公布的赛果。",

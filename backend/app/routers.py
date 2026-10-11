@@ -28,6 +28,7 @@ from .models import (
     User,
 )
 from .schemas import (
+    CompetitionSeasonResponse,
     ContactRequest,
     HomepageLikeResponse,
     ManualMatchCreate,
@@ -129,6 +130,11 @@ def matches(
     limit: int = Query(30, ge=1, le=100),
 ):
     return services.list_matches(db, team_id, competition_season_id, status, offset, limit)
+
+
+@router.get("/competition-seasons", response_model=list[CompetitionSeasonResponse])
+def competition_seasons(db: DB):
+    return services.competition_seasons(db)
 
 
 @router.get("/matches/{match_id}", response_model=MatchDetail)
