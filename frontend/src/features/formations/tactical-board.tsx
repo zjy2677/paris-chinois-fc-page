@@ -75,7 +75,9 @@ function Board({ matchId, viewer }: { matchId: string; viewer: string }) {
   const items = board.editable ? (draft ?? board.placements) : board.placements;
   const selectedPlayer = board.players.find((player) => player.id === selected);
   const ratingByPlayer = new Map(
-    ratings.data?.map((rating) => [rating.player_id, rating.average_stars] as const) ?? [],
+    board.status === "final"
+      ? (ratings.data?.map((rating) => [rating.player_id, rating.average_stars] as const) ?? [])
+      : [],
   );
   const move = (id: string, destination: "pitch" | "bench", x = 50, y = 50) => {
     if (!editable) return;
