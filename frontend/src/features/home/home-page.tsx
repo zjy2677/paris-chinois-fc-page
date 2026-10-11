@@ -34,7 +34,7 @@ export function HomePage() {
       <section className="border-b border-border bg-card">
         <div className="site-container grid lg:grid-cols-2">
           <div className="border-b border-border py-14 lg:border-b-0 lg:border-r lg:pr-12">
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="eyebrow text-primary">{t("01 / The next 90")}</p>
                 <h2 className="mt-3 font-display text-5xl font-bold uppercase md:text-6xl">
@@ -48,7 +48,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="py-14 lg:pl-12">
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="eyebrow text-copper">{t("02 / Last whistle")}</p>
                 <h2 className="mt-3 font-display text-5xl font-bold uppercase md:text-6xl">
