@@ -6,9 +6,11 @@ import { MatchCard } from "./match-card";
 export function MatchList({
   results = false,
   compact = false,
+  seasonIds,
 }: {
   results?: boolean;
   compact?: boolean;
+  seasonIds?: ReadonlySet<string>;
 }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
@@ -22,7 +24,11 @@ export function MatchList({
       />
     );
   const matches = query.data
-    .filter((m) => (results ? m.status === "final" : m.status !== "final"))
+    .filter(
+      (m) =>
+        (results ? m.status === "final" : m.status !== "final") &&
+        (!seasonIds || (m.competitionId !== undefined && seasonIds.has(m.competitionId))),
+    )
     .sort((a, b) => {
       if (!a.date) return 1;
       if (!b.date) return -1;

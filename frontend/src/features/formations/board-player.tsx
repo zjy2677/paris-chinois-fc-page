@@ -25,18 +25,34 @@ export function PlayerStats({ goals, assists }: { goals: number; assists: number
     </span>
   );
 }
-export function BoardPlayerIcon({ player }: { player: BoardPlayer }) {
+export function BoardPlayerIcon({
+  player,
+  rating,
+}: {
+  player: BoardPlayer;
+  rating?: number | null;
+}) {
   const { language } = useI18n();
   const name = localizedPlayerName(player.display_name, player.chinese_name, language);
   return (
     <>
-      <span className="mx-auto block w-10 overflow-hidden rounded-full border border-copper shadow-md sm:w-12">
-        <PlayerPortrait
-          name={name}
-          photoUrl={playerPhotoUrl(player)}
-          number={player.shirt_number}
-          compact
-        />
+      <span className="relative mx-auto block w-10 sm:w-12">
+        <span className="block overflow-hidden rounded-full border border-copper shadow-md">
+          <PlayerPortrait
+            name={name}
+            photoUrl={playerPhotoUrl(player)}
+            number={player.shirt_number}
+            compact
+          />
+        </span>
+        {rating !== null && rating !== undefined && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-3 -top-1 rounded-full border border-copper bg-black px-1.5 py-0.5 text-[10px] font-bold leading-none text-copper shadow-md"
+          >
+            ★ {rating.toFixed(1)}
+          </span>
+        )}
       </span>
       <span
         className="mt-1 block truncate rounded bg-black/80 px-1 text-[10px] font-semibold text-white sm:text-xs"

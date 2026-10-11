@@ -42,9 +42,9 @@ export function MatchCard({
           {t(`league.status.${match.status}`)}
         </span>
       </div>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-6">
         <div className="min-w-0">
-          <p className="font-display text-2xl font-bold uppercase leading-none sm:text-4xl">
+          <p className="break-words font-display text-2xl font-bold uppercase leading-none sm:text-4xl">
             {match.home.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{t("Home")}</p>
@@ -53,7 +53,7 @@ export function MatchCard({
           {match.score ? `${match.score[0]} : ${match.score[1]}` : t("VS")}
         </div>
         <div className="min-w-0 text-right">
-          <p className="font-display text-2xl font-bold uppercase leading-none sm:text-4xl">
+          <p className="break-words font-display text-2xl font-bold uppercase leading-none sm:text-4xl">
             {match.away.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{t("Away")}</p>

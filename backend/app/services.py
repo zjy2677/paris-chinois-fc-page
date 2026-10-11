@@ -22,6 +22,7 @@ from .models import (
     Venue,
 )
 from .schemas import (
+    CompetitionSeasonResponse,
     MatchResponse,
     PlayerResponse,
     StandingResponse,
@@ -29,6 +30,28 @@ from .schemas import (
     TeamResponse,
     VenueResponse,
 )
+
+
+def competition_seasons(db: Session) -> list[CompetitionSeasonResponse]:
+    seasons = db.scalars(
+        select(CompetitionSeason).order_by(
+            CompetitionSeason.season_label.desc(), CompetitionSeason.competition_name
+        )
+    )
+    return [
+        CompetitionSeasonResponse(
+            id=season.id,
+            season_label=season.season_label,
+            competition_kind=(
+                "cup"
+                if season.fla_cup_id is not None
+                else "league"
+                if season.fla_championship_id is not None
+                else "custom"
+            ),
+        )
+        for season in seasons
+    ]
 
 
 def match_query():

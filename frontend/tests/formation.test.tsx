@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "../src/i18n/i18n-provider";
-import { PlayerStats } from "../src/features/formations/board-player";
+import { BoardPlayerIcon, PlayerStats } from "../src/features/formations/board-player";
 import { countdown, placePlayer } from "../src/features/formations/formation-utils";
 
 test("positions survive moves without duplicate players and bench clears coordinates", () => {
@@ -43,4 +43,31 @@ test("player stats reuse goal and assist icons and omit zero counts", () => {
   );
   assert.ok(!empty.includes("⚽"));
   assert.ok(!empty.includes("🎯"));
+});
+
+test("rated squad icons show their match average over the portrait", () => {
+  const player = {
+    id: "player-one",
+    display_name: "Player One",
+    chinese_name: null,
+    photo_url: null,
+    has_uploaded_photo: false,
+    shirt_number: 8,
+    description: null,
+    position: "Midfielders",
+    goals: 0,
+    assists: 0,
+  };
+  const rated = renderToStaticMarkup(
+    <I18nProvider>
+      <BoardPlayerIcon player={player} rating={4.5} />
+    </I18nProvider>,
+  );
+  assert.ok(rated.includes("★ 4.5"));
+  const unrated = renderToStaticMarkup(
+    <I18nProvider>
+      <BoardPlayerIcon player={player} rating={null} />
+    </I18nProvider>,
+  );
+  assert.ok(!unrated.includes("★"));
 });

@@ -17,7 +17,7 @@ export function NavigationDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
-        className="flex w-[min(90vw,430px)] max-w-none flex-col border-border bg-background p-8 text-foreground"
+        className="flex w-[min(90vw,430px)] max-w-none flex-col overflow-y-auto border-border bg-background p-6 text-foreground sm:p-8"
       >
         <SheetTitle className="font-display text-3xl font-bold uppercase">
           Paris Chinois FC
@@ -30,10 +30,10 @@ export function NavigationDrawer({
               to={item.to}
               onClick={() => onOpenChange(false)}
               aria-current={pathname === item.to ? "page" : undefined}
-              className={`flex items-center justify-between border-b border-border py-3 font-display text-4xl font-bold uppercase transition-colors hover:text-primary ${pathname === item.to ? "text-primary" : "text-foreground"}`}
+              className={`flex min-h-12 items-center justify-between gap-3 border-b border-border py-3 font-display text-3xl font-bold uppercase transition-colors hover:text-primary sm:text-4xl ${pathname === item.to ? "text-primary" : "text-foreground"}`}
             >
-              <span>{t(item.labelKey)}</span>
-              <span className="font-sans text-xs text-muted-foreground">0{index + 1}</span>
+              <span className="min-w-0 break-words">{t(item.labelKey)}</span>
+              <span className="shrink-0 font-sans text-xs text-muted-foreground">0{index + 1}</span>
             </Link>
           ))}
         </nav>
