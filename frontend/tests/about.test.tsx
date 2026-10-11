@@ -42,7 +42,7 @@ test("All championship years match the supplied history", () => {
   );
 });
 
-test("About hides the fallback photo credit when album backgrounds are active", () => {
+test("About keeps its static photo and credit when album backgrounds are active", () => {
   const queryClient = new QueryClient();
   queryClient.setQueryData(["media", "backgrounds"], {
     album_id: "album-1",
@@ -65,6 +65,7 @@ test("About hides the fallback photo credit when album backgrounds are active", 
       </I18nProvider>
     </QueryClientProvider>,
   );
-  assert.ok(html.includes("/api/media/photos/photo-1/content"));
-  assert.ok(!html.includes("Jonathan Petersson"));
+  assert.ok(html.includes("about-pitch.jpg"));
+  assert.ok(html.includes("Jonathan Petersson"));
+  assert.ok(!html.includes("/api/media/photos/photo-1/content"));
 });
