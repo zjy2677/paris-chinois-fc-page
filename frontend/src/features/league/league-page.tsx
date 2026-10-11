@@ -24,9 +24,14 @@ export function LeaguePage() {
         title={t("FLA League")}
       />
       <div className="site-container py-16 md:py-24">
+        {account.data?.role === "admin" && (
+          <div className="mb-12">
+            <CreateMatchForm />
+          </div>
+        )}
         {seasons.isPending ? (
           <DataState loading />
-        ) : seasons.isError ? (
+        ) : seasons.isError && !seasons.data ? (
           <DataState error retry={() => void seasons.refetch()} />
         ) : !selected ? (
           <DataState empty="league.noSeasons" />
@@ -49,11 +54,6 @@ export function LeaguePage() {
                 ))}
               </select>
             </div>
-            {account.data?.role === "admin" && (
-              <div className="mb-12">
-                <CreateMatchForm />
-              </div>
-            )}
             <div className="grid gap-14 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <section>
                 <p className="eyebrow mb-3 text-primary">{t("Coming up")}</p>

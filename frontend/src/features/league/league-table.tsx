@@ -18,7 +18,7 @@ export function LeagueTable({
     competitionSeasonId === undefined ? (newestLeagueId ?? null) : competitionSeasonId;
   const query = useStandings(selectedId);
   if (competitionSeasonId === undefined && seasons.isPending) return <DataState loading />;
-  if (competitionSeasonId === undefined && seasons.isError)
+  if (competitionSeasonId === undefined && seasons.isError && !seasons.data)
     return <DataState error retry={() => void seasons.refetch()} />;
   if (selectedId === null) return <DataState />;
   if (query.isPending || query.isError)
