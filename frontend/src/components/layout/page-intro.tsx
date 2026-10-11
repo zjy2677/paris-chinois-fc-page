@@ -22,7 +22,7 @@ export function PageIntro({ eyebrow, title, description, backgroundImage }: Page
       <div className="texture absolute inset-0 opacity-40" />
       <div className="site-container relative">
         {eyebrow && <p className="eyebrow mb-5 text-copper">{eyebrow}</p>}
-        <h1 className="section-title max-w-5xl">{title}</h1>
+        <h1 className="section-title max-w-5xl break-words">{title}</h1>
         {description && (
           <p
             className={`mt-7 max-w-xl text-base md:text-lg ${backgroundImage ? "text-white/85" : "text-muted-foreground"}`}

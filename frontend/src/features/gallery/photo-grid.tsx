@@ -22,11 +22,13 @@ export function PhotoGrid({ photos, albumId, canManage = false }: PhotoGridProps
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-4">
+      <div
+        className={`grid gap-2 md:grid-cols-3 md:gap-4 ${canManage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2"}`}
+      >
         {photos.map((photo, index) => (
           <div
             key={photo.id}
-            className={`group relative overflow-hidden bg-muted ${index === 0 ? "col-span-2 row-span-2" : ""}`}
+            className={`group relative overflow-hidden bg-muted ${index === 0 ? (canManage ? "sm:col-span-2 sm:row-span-2" : "col-span-2 row-span-2") : ""}`}
           >
             <Dialog>
               <DialogTrigger asChild>
@@ -66,7 +68,7 @@ export function PhotoGrid({ photos, albumId, canManage = false }: PhotoGridProps
             </Dialog>
             {canManage && albumId ? (
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/80 p-2 text-xs text-white">
-                <label className="flex cursor-pointer items-center gap-2 font-semibold">
+                <label className="flex min-w-0 cursor-pointer items-center gap-2 font-semibold">
                   <input
                     type="checkbox"
                     checked={photo.use_as_background}
@@ -81,7 +83,7 @@ export function PhotoGrid({ photos, albumId, canManage = false }: PhotoGridProps
                     className="size-4 accent-primary"
                   />
                   <ImageIcon size={15} aria-hidden="true" />
-                  <span>{t("gallery.useAsBackground")}</span>
+                  <span className="min-w-0 break-words">{t("gallery.useAsBackground")}</span>
                 </label>
                 <button
                   type="button"
