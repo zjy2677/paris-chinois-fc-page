@@ -5,15 +5,15 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from etl.config import SourceConfig
-from etl.load import load
-from etl.parse_fixtures import parse_fixtures
-from etl.parse_standings import parse_standings
+from app.models import Match, StandingsSnapshot, SyncRun, Team
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
-from app.models import Match, StandingsSnapshot, SyncRun, Team
+from etl.config import SourceConfig
+from etl.load import load
+from etl.parse_fixtures import parse_fixtures
+from etl.parse_standings import parse_standings
 
 FIXTURES = Path(__file__).parents[2] / "etl/tests/fixtures"
 

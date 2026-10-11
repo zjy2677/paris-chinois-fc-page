@@ -1,11 +1,10 @@
+from app.config import get_settings
+from app.database import get_db
+from app.models import CompetitionSeason
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-
-from app.config import get_settings
-from app.database import get_db
-from app.models import CompetitionSeason
 
 
 def test_competition_seasons_exposes_persisted_league_and_cup_labels(monkeypatch):
