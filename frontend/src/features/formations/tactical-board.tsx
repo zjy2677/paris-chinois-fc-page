@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type PointerEvent } from "react";
 import { useAccount } from "@/features/auth/auth-api";
+import { useMatchRatings } from "@/features/ratings/ratings-api";
 import { useI18n } from "@/i18n/i18n-provider";
 import { localizedPlayerName } from "@/lib/player-name";
 import type { Match } from "@/types/football";
@@ -32,6 +33,7 @@ export function TacticalBoard({ match }: { match: Match }) {
 function Board({ matchId, viewer }: { matchId: string; viewer: string }) {
   const { t, language, c } = useI18n();
   const query = useFormation(matchId, viewer);
+  const ratings = useMatchRatings(matchId, query.data?.status === "final");
   const client = useQueryClient();
   const [draft, setDraft] = useState<Placement[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -72,6 +74,9 @@ function Board({ matchId, viewer }: { matchId: string; viewer: string }) {
   const editable = board.editable && !save.isPending;
   const items = board.editable ? (draft ?? board.placements) : board.placements;
   const selectedPlayer = board.players.find((player) => player.id === selected);
+  const ratingByPlayer = new Map(
+    ratings.data?.map((rating) => [rating.player_id, rating.average_stars] as const) ?? [],
+  );
   const move = (id: string, destination: "pitch" | "bench", x = 50, y = 50) => {
     if (!editable) return;
     save.reset();
@@ -118,44 +123,50 @@ function Board({ matchId, viewer }: { matchId: string; viewer: string }) {
       move(active.id, "bench");
     else setDraft(active.original);
   };
-  const token = (player: BoardPlayer) => (
-    <button
-      type="button"
-      aria-pressed={selected === player.id}
-      aria-label={localizedPlayerName(player.display_name, player.chinese_name, language)}
-      className={`w-16 rounded p-1 sm:w-20 ${editable ? "touch-none cursor-grab" : "cursor-pointer"} ${selected === player.id ? "ring-2 ring-copper" : "focus-visible:ring-2 focus-visible:ring-copper"}`}
-      onPointerDown={(event) => pointerDown(event, player.id)}
-      onPointerMove={pointerMove}
-      onPointerUp={pointerUp}
-      onPointerCancel={() => {
-        if (drag.current) setDraft(drag.current.original);
-        drag.current = null;
-      }}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (skipClick.current) {
-          skipClick.current = false;
-          return;
+  const token = (player: BoardPlayer) => {
+    const rating = ratingByPlayer.get(player.id) ?? null;
+    const name = localizedPlayerName(player.display_name, player.chinese_name, language);
+    return (
+      <button
+        type="button"
+        aria-pressed={selected === player.id}
+        aria-label={
+          rating === null ? name : `${name}, ${t("ratings.starLabel", { score: rating })}`
         }
-        setSelected(player.id);
-      }}
-      onKeyDown={(event) => {
-        const item = items.find((entry) => entry.player_id === player.id);
-        const delta = {
-          ArrowLeft: [-2, 0],
-          ArrowRight: [2, 0],
-          ArrowUp: [0, -2],
-          ArrowDown: [0, 2],
-        }[event.key];
-        if (editable && item?.placement === "pitch" && delta) {
-          event.preventDefault();
-          move(player.id, "pitch", (item.x ?? 50) + delta[0]!, (item.y ?? 50) + delta[1]!);
-        }
-      }}
-    >
-      <BoardPlayerIcon player={player} />
-    </button>
-  );
+        className={`w-16 rounded p-1 sm:w-20 ${editable ? "touch-none cursor-grab" : "cursor-pointer"} ${selected === player.id ? "ring-2 ring-copper" : "focus-visible:ring-2 focus-visible:ring-copper"}`}
+        onPointerDown={(event) => pointerDown(event, player.id)}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerUp}
+        onPointerCancel={() => {
+          if (drag.current) setDraft(drag.current.original);
+          drag.current = null;
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (skipClick.current) {
+            skipClick.current = false;
+            return;
+          }
+          setSelected(player.id);
+        }}
+        onKeyDown={(event) => {
+          const item = items.find((entry) => entry.player_id === player.id);
+          const delta = {
+            ArrowLeft: [-2, 0],
+            ArrowRight: [2, 0],
+            ArrowUp: [0, -2],
+            ArrowDown: [0, 2],
+          }[event.key];
+          if (editable && item?.placement === "pitch" && delta) {
+            event.preventDefault();
+            move(player.id, "pitch", (item.x ?? 50) + delta[0]!, (item.y ?? 50) + delta[1]!);
+          }
+        }}
+      >
+        <BoardPlayerIcon player={player} rating={rating} />
+      </button>
+    );
+  };
   return (
     <section
       className="mt-10 rounded-lg border border-border bg-card p-4 sm:p-6"
