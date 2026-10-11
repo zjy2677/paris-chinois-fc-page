@@ -227,6 +227,9 @@ class Player(Identity, Base):
     photo_url: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(default=True)
+    account_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), unique=True
+    )
 
 
 class PlayerAttribute(Identity, Base):
